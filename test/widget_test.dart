@@ -11,20 +11,39 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:metermind/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App loads with Home page', (WidgetTester tester) async {
+    await tester.pumpWidget(const MeterMindApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Verify home page loads with key elements
+    expect(find.textContaining('Good morning'), findsOneWidget);
+    expect(find.textContaining('Tharusha'), findsOneWidget);
+    expect(find.textContaining('MM-04218'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets('Bottom navigation switches to Insights', (WidgetTester tester) async {
+    await tester.pumpWidget(const MeterMindApp());
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Tap Insights tab
+    await tester.tap(find.byIcon(Icons.bar_chart_rounded));
+    await tester.pumpAndSettle();
+
+    // Verify insights page loads
+    expect(find.text('Consumption insights.'), findsOneWidget);
+    expect(find.text('Readings become a clearer picture.'), findsOneWidget);
+  });
+
+  testWidgets('Insights period tabs work', (WidgetTester tester) async {
+    await tester.pumpWidget(const MeterMindApp());
+
+    // Navigate to Insights
+    await tester.tap(find.byIcon(Icons.bar_chart_rounded));
+    await tester.pumpAndSettle();
+
+    // Tap Weekly tab
+    await tester.tap(find.text('Weekly'));
+    await tester.pumpAndSettle();
+
+    // Verify weekly content
+    expect(find.text('Weekly usage'), findsOneWidget);
   });
 }
