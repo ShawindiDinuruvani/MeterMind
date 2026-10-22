@@ -6,6 +6,7 @@ import '../firebase_options.dart';
 import '../models/assignment_model.dart';
 import '../models/reading_model.dart';
 import '../models/reader_model.dart';
+import 'customer_firebase_service.dart';
 
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
@@ -194,10 +195,12 @@ class FirebaseService {
 
       // Persistence is only supported on mobile/desktop, not web
       if (!kIsWeb) {
-        _firestore!.settings = const Settings(
-          persistenceEnabled: true,
-          cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-        );
+        try {
+          _firestore!.settings = const Settings(
+            persistenceEnabled: true,
+            cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+          );
+        } catch (_) {}
       }
 
       _useLocalFallback = false;
@@ -333,6 +336,9 @@ class FirebaseService {
       pendingCount: newPending > 0 ? newPending : 0,
     );
     _emitLocalStreams();
+
+    // Also update Customer backend in real-time
+    CustomerFirebaseService().notifyReadingSubmitted(reading);
 
     // 2. Sync to Firebase Firestore if connected
     if (!_useLocalFallback && _firestore != null) {

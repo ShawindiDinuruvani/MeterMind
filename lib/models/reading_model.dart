@@ -67,9 +67,7 @@ class ReadingModel {
       currentReading: (map['currentReading'] as num?)?.toInt() ?? 0,
       units: (map['units'] as num?)?.toInt() ?? 0,
       date: map['date'] ?? '',
-      timestamp: map['timestamp'] != null
-          ? DateTime.tryParse(map['timestamp']) ?? DateTime.now()
-          : DateTime.now(),
+      timestamp: _parseDateTime(map['timestamp']),
       status: map['status'] ?? 'Submitted',
       note: map['note'] ?? '',
       isAnomaly: map['isAnomaly'] ?? false,
@@ -78,4 +76,20 @@ class ReadingModel {
       photoPath: map['photoPath'],
     );
   }
+
+  static DateTime _parseDateTime(dynamic val) {
+    if (val == null) return DateTime.now();
+    if (val is DateTime) return val;
+    try {
+      return (val as dynamic).toDate() as DateTime;
+    } catch (_) {}
+    if (val is String) {
+      return DateTime.tryParse(val) ?? DateTime.now();
+    }
+    if (val is num) {
+      return DateTime.fromMillisecondsSinceEpoch(val.toInt());
+    }
+    return DateTime.now();
+  }
 }
+

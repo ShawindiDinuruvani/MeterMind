@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'services/firebase_service.dart';
+import 'services/customer_firebase_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/main_navigation_screen.dart';
 
@@ -20,6 +21,7 @@ void main() {
 
   // Initialize Firebase in the background (with local offline fallback)
   FirebaseService().initialize();
+  CustomerFirebaseService().initialize();
 }
 
 class MeterMindApp extends StatefulWidget {
@@ -55,3 +57,4 @@ class _MeterMindAppState extends State<MeterMindApp> {
     );
   }
 }
+
