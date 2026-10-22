@@ -1,77 +1,60 @@
-import 'package:flutter/material.dart';
 
-import 'screens/outage_page.dart';
-import 'screens/profile_page.dart';
-import 'screens/recommendation_page.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'services/firebase_service.dart';
+import 'theme/app_theme.dart';
+import 'screens/main_navigation_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
+
+  runApp(const MeterMindApp());
+
+  // Initialize Firebase in the background.
+  FirebaseService().initialize();
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MeterMindApp extends StatefulWidget {
+  const MeterMindApp({super.key});
+
+  @override
+  State<MeterMindApp> createState() => _MeterMindAppState();
+}
+
+class _MeterMindAppState extends State<MeterMindApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  void _toggleTheme() {
+    setState(() {
+      _themeMode = _themeMode == ThemeMode.light
+          ? ThemeMode.dark
+          : ThemeMode.light;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    const darkGreen = Color(0xFF173B32);
+    final isDark = _themeMode == ThemeMode.dark;
 
     return MaterialApp(
-      title: 'MeterMind',
+      title: 'MeterMind · Smart Energy',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: darkGreen,
-          primary: darkGreen,
-          surface: const Color(0xFFF4F5F0),
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF4F5F0),
-      ),
-      home: const MeterMindShell(),
-    );
-  }
-}
-
-class MeterMindShell extends StatefulWidget {
-  const MeterMindShell({super.key});
-
-  @override
-  State<MeterMindShell> createState() => _MeterMindShellState();
-}
-
-class _MeterMindShellState extends State<MeterMindShell> {
-  int _selectedIndex = 0;
-
-  static const _pages = [
-    OutagePage(),
-    RecommendationPage(),
-    ProfilePage(),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() => _selectedIndex = index);
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.track_changes_outlined),
-            label: 'Outages',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.route_outlined),
-            label: 'Recommendations',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.circle_outlined),
-            label: 'Profile',
-          ),
-        ],
+      theme: AppTheme.lightTheme(),
+      darkTheme: AppTheme.darkTheme(),
+      themeMode: _themeMode,
+      home: MainNavigationScreen(
+        onToggleTheme: _toggleTheme,
+        isDarkTheme: isDark,
       ),
     );
   }
 }
+
