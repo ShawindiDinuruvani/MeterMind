@@ -1,5 +1,7 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'services/firebase_service.dart';
 import 'services/customer_firebase_service.dart';
 import 'theme/app_theme.dart';
@@ -8,7 +10,6 @@ import 'screens/main_navigation_screen.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Set preferred system overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -16,12 +17,17 @@ void main() {
     ),
   );
 
-  // Run the app immediately so the UI renders instantly without any blank screen
   runApp(const MeterMindApp());
 
+<<<<<<< HEAD
   // Initialize Firebase in the background (with local offline fallback)
   FirebaseService().initialize();
   CustomerFirebaseService().initialize();
+=======
+  FirebaseService().initialize().catchError((error) {
+    debugPrint('Firebase initialization failed: $error');
+  });
+>>>>>>> f423ab1dff0ddf54f74b409697509ce09dad408f
 }
 
 class MeterMindApp extends StatefulWidget {
@@ -36,7 +42,9 @@ class _MeterMindAppState extends State<MeterMindApp> {
 
   void _toggleTheme() {
     setState(() {
-      _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+      _themeMode = _themeMode == ThemeMode.light
+          ? ThemeMode.dark
+          : ThemeMode.light;
     });
   }
 
