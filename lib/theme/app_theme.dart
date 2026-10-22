@@ -1,41 +1,46 @@
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  // Brand colors from MeterMind CSS design system
+  // Brand colors
   static const Color yellow = Color(0xFFF5C542);
   static const Color yellowLight = Color(0x33F5C542);
   static const Color ink = Color(0xFF202523);
   static const Color soft = Color(0xFFF4F5F0);
   static const Color muted = Color(0xFF626B66);
   static const Color line = Color(0xFFDEE3DB);
-  
+
   // Semantic status colors
   static const Color green = Color(0xFF237548);
   static const Color greenLight = Color(0xFFE7F2E9);
-  
+
   static const Color red = Color(0xFFB94338);
   static const Color redLight = Color(0xFFFBECE8);
-  
+
   static const Color amber = Color(0xFF936715);
   static const Color amberLight = Color(0xFFFBEFD5);
-  
+
   static const Color blue = Color(0xFF306F94);
   static const Color blueLight = Color(0xFFE8F0F7);
-  
-  // Glassmorphism gradients & borders
+
+  // Glassmorphism colors
   static const Color glassStart = Color(0xFF353E36);
   static const Color glassEnd = Color(0xFF1C2421);
   static const Color glassBorder = Color(0xFF657060);
   static const Color glassText = Color(0xFFFAFCF8);
   static const Color glassSub = Color(0xFFC5D0C3);
-  
+
   // Dark mode colors
   static const Color darkBg = Color(0xFF19221D);
   static const Color darkCard = Color(0xFF253029);
   static const Color darkLine = Color(0xFF465044);
   static const Color darkText = Color(0xFFEFF4EA);
   static const Color darkMuted = Color(0xFFB6C3B4);
+
+  // Backward-compatible aliases
+  static const Color energyYellow = yellow;
+  static const Color background = soft;
 }
 
 class AppTheme {
@@ -62,7 +67,9 @@ class AppTheme {
           color: AppColors.ink,
           letterSpacing: -0.5,
         ),
-        iconTheme: const IconThemeData(color: AppColors.ink),
+        iconTheme: const IconThemeData(
+          color: AppColors.ink,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -83,7 +90,10 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: AppColors.ink,
-          side: const BorderSide(color: AppColors.line, width: 1),
+          side: const BorderSide(
+            color: AppColors.line,
+            width: 1,
+          ),
           minimumSize: const Size.fromHeight(49),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -97,18 +107,28 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 15,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFBFC9BC)),
+          borderSide: const BorderSide(
+            color: Color(0xFFBFC9BC),
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFBFC9BC)),
+          borderSide: const BorderSide(
+            color: Color(0xFFBFC9BC),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF9C7B18), width: 2),
+          borderSide: const BorderSide(
+            color: Color(0xFF9C7B18),
+            width: 2,
+          ),
         ),
         hintStyle: GoogleFonts.inter(
           fontSize: 14,
@@ -120,7 +140,9 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(21),
-          side: const BorderSide(color: AppColors.line),
+          side: const BorderSide(
+            color: AppColors.line,
+          ),
         ),
         margin: const EdgeInsets.only(top: 14),
       ),
@@ -150,7 +172,9 @@ class AppTheme {
           color: AppColors.darkText,
           letterSpacing: -0.5,
         ),
-        iconTheme: const IconThemeData(color: AppColors.darkText),
+        iconTheme: const IconThemeData(
+          color: AppColors.darkText,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -171,7 +195,10 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           backgroundColor: AppColors.darkCard,
           foregroundColor: AppColors.darkText,
-          side: const BorderSide(color: AppColors.darkLine, width: 1),
+          side: const BorderSide(
+            color: AppColors.darkLine,
+            width: 1,
+          ),
           minimumSize: const Size.fromHeight(49),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -185,18 +212,28 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.darkCard,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 15,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.darkLine),
+          borderSide: const BorderSide(
+            color: AppColors.darkLine,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.darkLine),
+          borderSide: const BorderSide(
+            color: AppColors.darkLine,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.yellow, width: 2),
+          borderSide: const BorderSide(
+            color: AppColors.yellow,
+            width: 2,
+          ),
         ),
         hintStyle: GoogleFonts.inter(
           fontSize: 14,
@@ -208,10 +245,13 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(21),
-          side: const BorderSide(color: AppColors.darkLine),
+          side: const BorderSide(
+            color: AppColors.darkLine,
+          ),
         ),
         margin: const EdgeInsets.only(top: 14),
       ),
     );
   }
 }
+

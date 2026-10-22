@@ -1,10 +1,54 @@
+
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:metermind/models/assignment_model.dart';
 import 'package:metermind/models/reading_model.dart';
 import 'package:metermind/models/reader_model.dart';
 import 'package:metermind/services/ai_service.dart';
 
+// Import the relevant pages and theme used by your Malshi branch.
+// Adjust these paths if your actual folder structure is different.
+import 'package:metermind/screens/outage_page.dart';
+import 'package:metermind/screens/recommendation_page.dart';
+import 'package:metermind/screens/profile_page.dart';
+
 void main() {
+  group('Navigation Widget Tests', () {
+    testWidgets(
+      'navigation opens outage, recommendations, and profile pages',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: TestNavigationShell(),
+          ),
+        );
+
+        expect(find.text('Outage intelligence.'), findsOneWidget);
+
+        await tester.tap(find.text('Recommendations'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Use less.\nKnow why.'), findsOneWidget);
+        expect(
+          find.text('Start with your biggest appliances.'),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Profile'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Your workspace.'), findsOneWidget);
+        expect(find.text('Tharusha Wakwella'), findsOneWidget);
+
+        await tester.tap(find.text('Outages'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Outage intelligence.'), findsOneWidget);
+      },
+    );
+  });
+
   group('AIService Unit Tests', () {
     final aiService = AIService();
 
@@ -21,10 +65,10 @@ void main() {
       expect(result.possibleCauses.isNotEmpty, isTrue);
     });
 
-    test('Detects usage surge above 1000 kWh or +80% as anomaly', () {
+    test('Detects usage surge as an anomaly', () {
       final result = aiService.analyzeReading(
         currentReading: 16900,
-        previousReading: 15700, // 1200 kWh consumption vs 312 baseline (+284%)
+        previousReading: 15700,
         historicalAverageUsage: 312,
       );
 
@@ -36,7 +80,7 @@ void main() {
     test('Approves normal consumption range', () {
       final result = aiService.analyzeReading(
         currentReading: 16012,
-        previousReading: 15700, // 312 kWh consumption exactly at baseline
+        previousReading: 15700,
         historicalAverageUsage: 312,
       );
 
@@ -45,7 +89,7 @@ void main() {
       expect(result.title, 'Consumption Verified');
     });
 
-    test('Simulates AI Meter OCR digit extraction', () async {
+    test('Simulates AI meter OCR digit extraction', () async {
       final ocrResult = await aiService.scanMeterOcr(
         baselinePreviousReading: 15700,
       );
@@ -56,7 +100,10 @@ void main() {
     });
 
     test('AI Field Copilot answers error code questions', () {
-      final answer = aiService.getCopilotAnswer('What does Err-01 mean?');
+      final answer = aiService.getCopilotAnswer(
+        'What does Err-01 mean?',
+      );
+
       expect(answer, contains('Reverse energy flow'));
     });
   });
@@ -78,7 +125,9 @@ void main() {
       );
 
       expect(assignment.isCompleted, isFalse);
+
       final completed = assignment.copyWith(status: 'Completed');
+
       expect(completed.isCompleted, isTrue);
     });
 
@@ -112,11 +161,62 @@ void main() {
       );
 
       final map = reading.toMap();
+
       expect(map['units'], 120);
       expect(map['meterId'], 'MM-04218');
 
       final fromMap = ReadingModel.fromMap(map, 'R-01');
+
       expect(fromMap.currentReading, 15820);
     });
   });
+}
+
+class TestNavigationShell extends StatefulWidget {
+  const TestNavigationShell({super.key});
+
+  @override
+  State<TestNavigationShell> createState() => _TestNavigationShellState();
+}
+
+class _TestNavigationShellState extends State<TestNavigationShell> {
+  int selectedIndex = 0;
+
+  late final List<Widget> pages = [
+    const OutagePage(),
+    const RecommendationPage(),
+    const ProfilePage(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: selectedIndex,
+        children: pages,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            selectedIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.track_changes_outlined),
+            label: 'Outages',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.route_outlined),
+            label: 'Recommendations',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
 }
