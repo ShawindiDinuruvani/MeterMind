@@ -18,8 +18,9 @@ void main() {
 
   runApp(const MeterMindApp());
 
-  // Initialize Firebase in the background.
-  FirebaseService().initialize();
+  FirebaseService().initialize().catchError((error) {
+    debugPrint('Firebase initialization failed: $error');
+  });
 }
 
 class MeterMindApp extends StatefulWidget {

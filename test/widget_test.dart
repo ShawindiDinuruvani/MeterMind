@@ -2,26 +2,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:metermind/main.dart';
 import 'package:metermind/models/assignment_model.dart';
 import 'package:metermind/models/reading_model.dart';
 import 'package:metermind/models/reader_model.dart';
 import 'package:metermind/services/ai_service.dart';
-
-// Import the relevant pages and theme used by your Malshi branch.
-// Adjust these paths if your actual folder structure is different.
 import 'package:metermind/screens/outage_page.dart';
 import 'package:metermind/screens/recommendation_page.dart';
 import 'package:metermind/screens/profile_page.dart';
 
 void main() {
+  group('MeterMind App Tests', () {
+    testWidgets('App loads successfully', (tester) async {
+      await tester.pumpWidget(const MeterMindApp());
+      await tester.pump();
+
+      expect(find.byType(MaterialApp), findsOneWidget);
+    });
+  });
+
   group('Navigation Widget Tests', () {
     testWidgets(
       'navigation opens outage, recommendations, and profile pages',
       (tester) async {
         await tester.pumpWidget(
-          const MaterialApp(
-            home: TestNavigationShell(),
-          ),
+          const MaterialApp(home: TestNavigationShell()),
         );
 
         expect(find.text('Outage intelligence.'), findsOneWidget);
@@ -90,13 +95,13 @@ void main() {
     });
 
     test('Simulates AI meter OCR digit extraction', () async {
-      final ocrResult = await aiService.scanMeterOcr(
+      final result = await aiService.scanMeterOcr(
         baselinePreviousReading: 15700,
       );
 
-      expect(ocrResult.detectedReading, greaterThan(15700));
-      expect(ocrResult.confidence, greaterThan(0.95));
-      expect(ocrResult.meterType, contains('CEB Standard'));
+      expect(result.detectedReading, greaterThan(15700));
+      expect(result.confidence, greaterThan(0.95));
+      expect(result.meterType, contains('CEB Standard'));
     });
 
     test('AI Field Copilot answers error code questions', () {
@@ -127,7 +132,6 @@ void main() {
       expect(assignment.isCompleted, isFalse);
 
       final completed = assignment.copyWith(status: 'Completed');
-
       expect(completed.isCompleted, isTrue);
     });
 
@@ -166,7 +170,6 @@ void main() {
       expect(map['meterId'], 'MM-04218');
 
       final fromMap = ReadingModel.fromMap(map, 'R-01');
-
       expect(fromMap.currentReading, 15820);
     });
   });
@@ -198,9 +201,7 @@ class _TestNavigationShellState extends State<TestNavigationShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) {
-          setState(() {
-            selectedIndex = index;
-          });
+          setState(() => selectedIndex = index);
         },
         destinations: const [
           NavigationDestination(
