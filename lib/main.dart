@@ -1,46 +1,61 @@
+
 import 'package:flutter/material.dart';
-import 'core/theme/app_theme.dart';
-import 'shared/widgets/app_bottom_nav.dart';
-import 'features/home/home_page.dart';
-import 'features/insights/insights_page.dart';
+import 'package:flutter/services.dart';
 
-void main() => runApp(const MeterMindApp());
+import 'services/firebase_service.dart';
+import 'theme/app_theme.dart';
+import 'screens/main_navigation_screen.dart';
 
-class MeterMindApp extends StatelessWidget {
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
+
+  runApp(const MeterMindApp());
+
+  FirebaseService().initialize().catchError((error) {
+    debugPrint('Firebase initialization failed: $error');
+  });
+}
+
+class MeterMindApp extends StatefulWidget {
   const MeterMindApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'MeterMind',
-    debugShowCheckedModeBanner: false,
-    theme: appTheme,
-    home: const MainShell(),
-  );
+  State<MeterMindApp> createState() => _MeterMindAppState();
 }
 
-class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+class _MeterMindAppState extends State<MeterMindApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  void _toggleTheme() {
+    setState(() {
+      _themeMode = _themeMode == ThemeMode.light
+          ? ThemeMode.dark
+          : ThemeMode.light;
+    });
+  }
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  Widget build(BuildContext context) {
+    final isDark = _themeMode == ThemeMode.dark;
+
+    return MaterialApp(
+      title: 'MeterMind · Smart Energy',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme(),
+      darkTheme: AppTheme.darkTheme(),
+      themeMode: _themeMode,
+      home: MainNavigationScreen(
+        onToggleTheme: _toggleTheme,
+        isDarkTheme: isDark,
+      ),
+    );
+  }
 }
 
-class _MainShellState extends State<MainShell> {
-  int _currentIndex = 0;
-
-  static final List<Widget> _pages = [
-    const HomePage(),
-    const InsightsPage(),
-  ];
-
-  void _onTap(int index) => setState(() => _currentIndex = index);
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: IndexedStack(index: _currentIndex, children: _pages),
-    bottomNavigationBar: AppBottomNav(
-      currentIndex: _currentIndex,
-      onTap: _onTap,
-    ),
-  );
-}
