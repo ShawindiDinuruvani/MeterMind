@@ -5,11 +5,11 @@ import 'manage_users.dart';
 import 'manage_meters.dart';
 import 'meter_reader_assignments.dart';
 import 'reading_progress.dart';
+import 'analytics_reports.dart';
+import 'outage_management.dart';
+import 'outage_map.dart';
 
-// ============================================
 // MeterMind - Smart Energy Glass Theme
-// ============================================
-
 class MMColors {
   static const yellow = Color(0xFFF5C542);
   static const ink = Color(0xFF202523);
@@ -21,10 +21,7 @@ class MMColors {
   static const amber = Color(0xFF936715);
 }
 
-// ============================================
 // Independent Admin App
-// ============================================
-
 void main() {
   runApp(const AdminApp());
 }
@@ -49,16 +46,13 @@ class AdminApp extends StatelessWidget {
           backgroundColor: MMColors.soft,
           foregroundColor: MMColors.ink,
           elevation: 0,
-          centerTitle: false,
         ),
         cardTheme: CardThemeData(
           color: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(21),
-            side: const BorderSide(
-              color: MMColors.line,
-            ),
+            side: const BorderSide(color: MMColors.line),
           ),
         ),
       ),
@@ -67,10 +61,7 @@ class AdminApp extends StatelessWidget {
   }
 }
 
-// ============================================
-// Main Admin Navigation - 5 Pages
-// ============================================
-
+// Main Admin Navigation
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
@@ -102,9 +93,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         decoration: const BoxDecoration(
           color: Colors.white,
           border: Border(
-            top: BorderSide(
-              color: MMColors.line,
-            ),
+            top: BorderSide(color: MMColors.line),
           ),
         ),
         child: SafeArea(
@@ -124,44 +113,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(
-                  Icons.dashboard_rounded,
-                  color: MMColors.ink,
-                ),
+                selectedIcon: Icon(Icons.dashboard_rounded),
                 label: 'Dashboard',
               ),
               NavigationDestination(
                 icon: Icon(Icons.people_outline),
-                selectedIcon: Icon(
-                  Icons.people,
-                  color: MMColors.ink,
-                ),
+                selectedIcon: Icon(Icons.people),
                 label: 'Users',
               ),
               NavigationDestination(
-                icon: Icon(
-                  Icons.electric_meter_outlined,
-                ),
-                selectedIcon: Icon(
-                  Icons.electric_meter,
-                  color: MMColors.ink,
-                ),
+                icon: Icon(Icons.electric_meter_outlined),
+                selectedIcon: Icon(Icons.electric_meter),
                 label: 'Meters',
               ),
               NavigationDestination(
                 icon: Icon(Icons.assignment_outlined),
-                selectedIcon: Icon(
-                  Icons.assignment,
-                  color: MMColors.ink,
-                ),
+                selectedIcon: Icon(Icons.assignment),
                 label: 'Routes',
               ),
               NavigationDestination(
                 icon: Icon(Icons.analytics_outlined),
-                selectedIcon: Icon(
-                  Icons.analytics,
-                  color: MMColors.ink,
-                ),
+                selectedIcon: Icon(Icons.analytics),
                 label: 'Progress',
               ),
             ],
@@ -172,12 +144,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 }
 
-// ============================================
-// Dashboard Home Page
-// ============================================
-
+// Dashboard Home
 class DashboardHome extends StatelessWidget {
   const DashboardHome({super.key});
+
+  void openPage(BuildContext context, Widget page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => page),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -213,6 +189,9 @@ class DashboardHome extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: 'Notifications',
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+            ),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -222,20 +201,12 @@ class DashboardHome extends StatelessWidget {
                 ),
               );
             },
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-            ),
           ),
           const SizedBox(width: 8),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          19,
-          20,
-          19,
-          28,
-        ),
+        padding: const EdgeInsets.fromLTRB(19, 20, 19, 28),
         children: [
           const Text(
             'SUPERVISOR WORKSPACE',
@@ -266,10 +237,7 @@ class DashboardHome extends StatelessWidget {
           ),
           const SizedBox(height: 18),
 
-          // =================================
           // Reading Coverage Card
-          // =================================
-
           Container(
             padding: const EdgeInsets.all(23),
             decoration: BoxDecoration(
@@ -287,8 +255,7 @@ class DashboardHome extends StatelessWidget {
               ),
             ),
             child: const Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   "Today's reading coverage",
@@ -299,8 +266,7 @@ class DashboardHome extends StatelessWidget {
                 ),
                 SizedBox(height: 10),
                 Row(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       '76',
@@ -328,15 +294,14 @@ class DashboardHome extends StatelessWidget {
                 ),
                 SizedBox(height: 14),
                 ClipRRect(
-                  borderRadius:
-                      BorderRadius.all(Radius.circular(10)),
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(10),
+                  ),
                   child: LinearProgressIndicator(
                     value: 0.76,
                     minHeight: 8,
-                    backgroundColor:
-                        Color(0xFF566057),
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(
+                    backgroundColor: Color(0xFF566057),
+                    valueColor: AlwaysStoppedAnimation<Color>(
                       MMColors.yellow,
                     ),
                   ),
@@ -371,10 +336,7 @@ class DashboardHome extends StatelessWidget {
 
           const SizedBox(height: 13),
 
-          // =================================
           // Statistics Cards
-          // =================================
-
           const Row(
             children: [
               Expanded(
@@ -389,8 +351,7 @@ class DashboardHome extends StatelessWidget {
                 child: _StatCard(
                   title: 'Active meters',
                   value: '2,400',
-                  icon:
-                      Icons.electric_meter_outlined,
+                  icon: Icons.electric_meter_outlined,
                 ),
               ),
             ],
@@ -419,37 +380,29 @@ class DashboardHome extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          // =================================
           // Outage Alert
-          // =================================
-
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(21),
-              border: Border.all(
-                color: MMColors.line,
-              ),
+              border: Border.all(color: MMColors.line),
             ),
             child: Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: 4,
                   height: 90,
                   decoration: BoxDecoration(
                     color: MMColors.amber,
-                    borderRadius:
-                        BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
                 const SizedBox(width: 13),
                 const Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Potential outage hotspot',
@@ -485,10 +438,7 @@ class DashboardHome extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // =================================
-          // Quick Actions
-          // =================================
-
+          // Quick Actions - All 7 Pages
           const Text(
             'Quick Actions',
             style: TextStyle(
@@ -502,68 +452,75 @@ class DashboardHome extends StatelessWidget {
           _ActionButton(
             title: 'Manage Users',
             icon: Icons.people_outline,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      const ManageUsersPage(),
-                ),
-              );
-            },
+            onTap: () => openPage(
+              context,
+              const ManageUsersPage(),
+            ),
           ),
           const SizedBox(height: 10),
 
           _ActionButton(
             title: 'Manage Meters',
             icon: Icons.electric_meter_outlined,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      const ManageMetersPage(),
-                ),
-              );
-            },
+            onTap: () => openPage(
+              context,
+              const ManageMetersPage(),
+            ),
           ),
           const SizedBox(height: 10),
 
           _ActionButton(
             title: 'Reader Assignments',
             icon: Icons.assignment_outlined,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      const MeterReaderAssignmentsPage(),
-                ),
-              );
-            },
+            onTap: () => openPage(
+              context,
+              const MeterReaderAssignmentsPage(),
+            ),
           ),
           const SizedBox(height: 10),
 
           _ActionButton(
             title: 'Reading Progress',
             icon: Icons.analytics_outlined,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      const ReadingProgressPage(),
-                ),
-              );
-            },
+            onTap: () => openPage(
+              context,
+              const ReadingProgressPage(),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          _ActionButton(
+            title: 'Analytics & Reports',
+            icon: Icons.bar_chart_rounded,
+            onTap: () => openPage(
+              context,
+              const AnalyticsReportsPage(),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          _ActionButton(
+            title: 'Outage Management',
+            icon: Icons.warning_amber_rounded,
+            onTap: () => openPage(
+              context,
+              const OutageManagementPage(),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          _ActionButton(
+            title: 'Outage Map & Hotspots',
+            icon: Icons.map_outlined,
+            onTap: () => openPage(
+              context,
+              const OutageMapPage(),
+            ),
           ),
 
           const SizedBox(height: 24),
 
-          // =================================
           // Recent Activity
-          // =================================
-
           const Text(
             'Recent Activity',
             style: TextStyle(
@@ -582,9 +539,7 @@ class DashboardHome extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(21),
-              border: Border.all(
-                color: MMColors.line,
-              ),
+              border: Border.all(color: MMColors.line),
             ),
             child: const Column(
               children: [
@@ -600,8 +555,7 @@ class DashboardHome extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  subtitle:
-                      Text('Route completion'),
+                  subtitle: Text('Route completion'),
                   trailing: Text(
                     '28 / 40',
                     style: TextStyle(
@@ -625,8 +579,7 @@ class DashboardHome extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  subtitle:
-                      Text('Latest outage report'),
+                  subtitle: Text('Latest outage report'),
                   trailing: Text(
                     '14:32',
                     style: TextStyle(
@@ -639,7 +592,6 @@ class DashboardHome extends StatelessWidget {
           ),
 
           const SizedBox(height: 15),
-
           const Center(
             child: Text(
               'Demo data · Backend not connected',
@@ -655,10 +607,7 @@ class DashboardHome extends StatelessWidget {
   }
 }
 
-// ============================================
-// Statistics Card Widget
-// ============================================
-
+// Statistics Card
 class _StatCard extends StatelessWidget {
   final String title;
   final String value;
@@ -679,13 +628,10 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(21),
-        border: Border.all(
-          color: MMColors.line,
-        ),
+        border: Border.all(color: MMColors.line),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             icon,
@@ -725,10 +671,7 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// ============================================
 // Yellow Quick Action Button
-// ============================================
-
 class _ActionButton extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -755,10 +698,7 @@ class _ActionButton extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                icon,
-                color: MMColors.ink,
-              ),
+              Icon(icon, color: MMColors.ink),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
