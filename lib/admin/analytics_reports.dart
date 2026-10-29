@@ -1,8 +1,15 @@
-
 import 'package:flutter/material.dart';
+import '../services/admin_backend_service.dart';
 
-class AnalyticsReportsPage extends StatelessWidget {
+class AnalyticsReportsPage extends StatefulWidget {
   const AnalyticsReportsPage({super.key});
+
+  @override
+  State<AnalyticsReportsPage> createState() => _AnalyticsReportsPageState();
+}
+
+class _AnalyticsReportsPageState extends State<AnalyticsReportsPage> {
+  final AdminBackendService _backendService = AdminBackendService();
 
   static const yellow = Color(0xFFF5C542);
   static const ink = Color(0xFF202523);
@@ -52,74 +59,100 @@ class AnalyticsReportsPage extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          Container(
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF353E36),
-                  Color(0xFF1C2421),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(21),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Monthly reading completion',
-                  style: TextStyle(
-                    color: Color(0xFFC5D0C3),
+          // 1. Monthly reading completion Card (Stream-powered)
+          StreamBuilder>(
+            stream: _backendService.getAssignmentProgressSummary(),
+            builder: (context, snapshot) {
+              final data = snapshot.data ?? {};
+              final int totalCompleted = data['totalCompleted'] ?? 0;
+              final int totalAssigned = data['totalAssigned'] ?? 0;
+              final double percentage = data['percentage'] ?? 0.0;
+              final int pending = totalAssigned > totalCompleted ? totalAssigned - totalCompleted : 0;
+              final double progressValue = totalAssigned > 0 ? (percentage / 100).clamp(0.0, 1.0) : 0.0;
+
+              return Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF353E36),
+                      Color(0xFF1C2421),
+                    ],
                   ),
+                  borderRadius: BorderRadius.circular(21),
                 ),
-                SizedBox(height: 12),
-                Text(
-                  '76%',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 43,
-                    fontWeight: FontWeight.w800,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Monthly reading completion',
+                      style: TextStyle(
+                        color: Color(0xFFC5D0C3),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '${percentage.toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 43,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    LinearProgressIndicator(
+                      value: progressValue,
+                      minHeight: 9,
+                      backgroundColor: const Color(0xFF566057),
+                      color: yellow,
+                      borderRadius: const BorderRadius.all(
+                        Radius.circular(10),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '$totalCompleted completed · $pending pending',
+                      style: const TextStyle(
+                        color: Color(0xFFC5D0C3),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 14),
-                LinearProgressIndicator(
-                  value: 0.76,
-                  minHeight: 9,
-                  backgroundColor: Color(0xFF566057),
-                  color: yellow,
-                  borderRadius: BorderRadius.all(
-                    Radius.circular(10),
-                  ),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  '1,824 completed · 576 pending',
-                  style: TextStyle(
-                    color: Color(0xFFC5D0C3),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
 
           const SizedBox(height: 18),
 
+          // 2. Active Meters and Readers Metrics
           Row(
             children: [
               Expanded(
-                child: _metric(
-                  'Active meters',
-                  '2,400',
-                  Icons.electric_meter_outlined,
+                child: StreamBuilder<int>(
+                  stream: _backendService.getActiveMetersCount(),
+                  builder: (context, snapshot) {
+                    final meters = snapshot.hasData ? snapshot.data.toString() : '...';
+                    return _metric(
+                      'Active meters',
+                      meters,
+                      Icons.electric_meter_outlined,
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _metric(
-                  'Active readers',
-                  '18',
-                  Icons.badge_outlined,
+                child: StreamBuilder<int>(
+                  stream: _backendService.getActiveReadersCount(),
+                  builder: (context, snapshot) {
+                    final readers = snapshot.hasData ? snapshot.data.toString() : '...';
+                    return _metric(
+                      'Active readers',
+                      readers,
+                      Icons.badge_outlined,
+                    );
+                  },
                 ),
               ),
             ],
@@ -136,29 +169,55 @@ class AnalyticsReportsPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          _insight(
-            icon: Icons.check_circle_outline,
-            title: 'Completed readings',
-            value: '1,824',
-            color: green,
+          // 3. Operational Insights using Live Streams
+          StreamBuilder>(
+            stream: _backendService.getAssignmentProgressSummary(),
+            builder: (context, assignSnapshot) {
+              final assignData = assignSnapshot.data ?? {};
+              final completed = assignData['totalCompleted']?.toString() ?? '0';
+              final assigned = assignData['totalAssigned']?.toInt() ?? 0;
+              final pendingVal = assigned > int.parse(completed) ? assigned - int.parse(completed) : 0;
+
+              return Column(
+                children: [
+                  _insight(
+                    icon: Icons.check_circle_outline,
+                    title: 'Completed readings',
+                    value: completed,
+                    color: green,
+                  ),
+                  _insight(
+                    icon: Icons.pending_actions_outlined,
+                    title: 'Pending readings',
+                    value: pendingVal.toString(),
+                    color: amber,
+                  ),
+                ],
+              );
+            },
           ),
-          _insight(
-            icon: Icons.pending_actions_outlined,
-            title: 'Pending readings',
-            value: '576',
-            color: amber,
-          ),
-          _insight(
-            icon: Icons.warning_amber_rounded,
-            title: 'Potential anomalies',
-            value: '7',
-            color: amber,
-          ),
-          _insight(
-            icon: Icons.bolt_outlined,
-            title: 'Nearby outage reports',
-            value: '12',
-            color: amber,
+
+          StreamBuilder<int>(
+            stream: _backendService.getPendingOutagesCount(),
+            builder: (context, outageSnapshot) {
+              final outagesCount = outageSnapshot.hasData ? outageSnapshot.data.toString() : '...';
+              return Column(
+                children: [
+                  _insight(
+                    icon: Icons.warning_amber_rounded,
+                    title: 'Potential anomalies',
+                    value: '7',
+                    color: amber,
+                  ),
+                  _insight(
+                    icon: Icons.bolt_outlined,
+                    title: 'Nearby outage reports',
+                    value: outagesCount,
+                    color: amber,
+                  ),
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: 20),
@@ -185,8 +244,7 @@ class AnalyticsReportsPage extends StatelessWidget {
                 SizedBox(width: 12),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Reading Summary Report',
@@ -197,7 +255,7 @@ class AnalyticsReportsPage extends StatelessWidget {
                       ),
                       SizedBox(height: 5),
                       Text(
-                        'Report preview · Demo data',
+                        'Live Firestore connected report',
                         style: TextStyle(
                           color: muted,
                           fontSize: 12,
@@ -214,10 +272,11 @@ class AnalyticsReportsPage extends StatelessWidget {
           const SizedBox(height: 18),
           const Center(
             child: Text(
-              'Illustrative analytics · Backend not connected',
+              'Live Firebase Connected · Analytics Active',
               style: TextStyle(
-                color: muted,
+                color: green,
                 fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

@@ -1,4 +1,5 @@
-
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,8 +8,13 @@ import 'services/customer_firebase_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/main_navigation_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase properly for all platforms
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -18,16 +24,6 @@ void main() {
   );
 
   runApp(const MeterMindApp());
-
-<<<<<<< HEAD
-  // Initialize Firebase in the background (with local offline fallback)
-  FirebaseService().initialize();
-  CustomerFirebaseService().initialize();
-=======
-  FirebaseService().initialize().catchError((error) {
-    debugPrint('Firebase initialization failed: $error');
-  });
->>>>>>> f423ab1dff0ddf54f74b409697509ce09dad408f
 }
 
 class MeterMindApp extends StatefulWidget {
