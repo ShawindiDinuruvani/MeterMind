@@ -1,5 +1,5 @@
-
 import 'package:flutter/material.dart';
+import '../services/admin_backend_service.dart';
 
 import 'manage_users.dart';
 import 'manage_meters.dart';
@@ -66,8 +66,7 @@ class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
   @override
-  State<AdminDashboard> createState() =>
-      _AdminDashboardState();
+  State<AdminDashboard> createState() => _AdminDashboardState();
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
@@ -103,8 +102,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             backgroundColor: Colors.white,
             indicatorColor: const Color(0x33F5C542),
             selectedIndex: selectedIndex,
-            labelBehavior:
-                NavigationDestinationLabelBehavior.alwaysShow,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             onDestinationSelected: (index) {
               setState(() {
                 selectedIndex = index;
@@ -145,8 +143,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
 }
 
 // Dashboard Home
-class DashboardHome extends StatelessWidget {
+class DashboardHome extends StatefulWidget {
   const DashboardHome({super.key});
+
+  @override
+  State<DashboardHome> createState() => _DashboardHomeState();
+}
+
+class _DashboardHomeState extends State<DashboardHome> {
+  final AdminBackendService _backendService = AdminBackendService();
 
   void openPage(BuildContext context, Widget page) {
     Navigator.push(
@@ -229,7 +234,7 @@ class DashboardHome extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           const Text(
-            'Homagama district · Demo overview',
+            'Homagama district · Live overview',
             style: TextStyle(
               color: MMColors.muted,
               fontSize: 13,
@@ -336,38 +341,56 @@ class DashboardHome extends StatelessWidget {
 
           const SizedBox(height: 13),
 
-          // Statistics Cards
-          const Row(
+          // Statistics Cards with Live Streams
+          Row(
             children: [
               Expanded(
-                child: _StatCard(
-                  title: 'Customers',
-                  value: '2,400',
-                  icon: Icons.people_outline,
+                child: StreamBuilder<int>(
+                  stream: _backendService.getTotalUsersCount(),
+                  builder: (context, snapshot) {
+                    final count = snapshot.hasData ? snapshot.data.toString() : '...';
+                    return _StatCard(
+                      title: 'Customers',
+                      value: count,
+                      icon: Icons.people_outline,
+                    );
+                  },
                 ),
               ),
-              SizedBox(width: 11),
+              const SizedBox(width: 11),
               Expanded(
-                child: _StatCard(
-                  title: 'Active meters',
-                  value: '2,400',
-                  icon: Icons.electric_meter_outlined,
+                child: StreamBuilder<int>(
+                  stream: _backendService.getActiveMetersCount(),
+                  builder: (context, snapshot) {
+                    final count = snapshot.hasData ? snapshot.data.toString() : '...';
+                    return _StatCard(
+                      title: 'Active meters',
+                      value: count,
+                      icon: Icons.electric_meter_outlined,
+                    );
+                  },
                 ),
               ),
             ],
           ),
           const SizedBox(height: 11),
-          const Row(
+          Row(
             children: [
               Expanded(
-                child: _StatCard(
-                  title: 'Active readers',
-                  value: '18',
-                  icon: Icons.badge_outlined,
+                child: StreamBuilder<int>(
+                  stream: _backendService.getActiveReadersCount(),
+                  builder: (context, snapshot) {
+                    final count = snapshot.hasData ? snapshot.data.toString() : '...';
+                    return _StatCard(
+                      title: 'Active readers',
+                      value: count,
+                      icon: Icons.badge_outlined,
+                    );
+                  },
                 ),
               ),
-              SizedBox(width: 11),
-              Expanded(
+              const SizedBox(width: 11),
+              const Expanded(
                 child: _StatCard(
                   title: 'Needs review',
                   value: '7',
@@ -594,10 +617,11 @@ class DashboardHome extends StatelessWidget {
           const SizedBox(height: 15),
           const Center(
             child: Text(
-              'Demo data · Backend not connected',
+              'Live Firebase Connected',
               style: TextStyle(
-                color: MMColors.muted,
+                color: MMColors.green,
                 fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

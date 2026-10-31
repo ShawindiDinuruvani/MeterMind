@@ -1,5 +1,5 @@
-
 import 'package:flutter/material.dart';
+import '../services/admin_backend_service.dart';
 
 class OutageMapPage extends StatefulWidget {
   const OutageMapPage({super.key});
@@ -9,51 +9,18 @@ class OutageMapPage extends StatefulWidget {
 }
 
 class _OutageMapPageState extends State<OutageMapPage> {
-  static const yellow = Color(0xFFF5C542);
-  static const ink = Color(0xFF202523);
-  static const soft = Color(0xFFF4F5F0);
-  static const muted = Color(0xFF626B66);
-  static const line = Color(0xFFDEE3DB);
-  static const green = Color(0xFF237548);
-  static const red = Color(0xFFB94338);
-  static const amber = Color(0xFF936715);
+  static const Color yellow = Color(0xFFF5C542);
+  static const Color ink = Color(0xFF202523);
+  static const Color soft = Color(0xFFF4F5F0);
+  static const Color muted = Color(0xFF626B66);
+  static const Color line = Color(0xFFDEE3DB);
+  static const Color green = Color(0xFF237548);
+  static const Color red = Color(0xFFB94338);
+  static const Color amber = Color(0xFF936715);
+
+  final AdminBackendService _backendService = AdminBackendService();
 
   String selectedFilter = 'All';
-
-  final List<Map<String, dynamic>> hotspots = [
-    {
-      'location': 'Homagama',
-      'reports': 12,
-      'risk': 'High',
-      'status': 'Unverified',
-      'x': 0.45,
-      'y': 0.55,
-    },
-    {
-      'location': 'Maharagama',
-      'reports': 7,
-      'risk': 'Medium',
-      'status': 'Investigating',
-      'x': 0.30,
-      'y': 0.35,
-    },
-    {
-      'location': 'Kottawa',
-      'reports': 5,
-      'risk': 'Medium',
-      'status': 'Unverified',
-      'x': 0.65,
-      'y': 0.38,
-    },
-    {
-      'location': 'Pannipitiya',
-      'reports': 2,
-      'risk': 'Low',
-      'status': 'Resolved',
-      'x': 0.72,
-      'y': 0.72,
-    },
-  ];
 
   Color riskColor(String risk) {
     switch (risk) {
@@ -105,7 +72,7 @@ class _OutageMapPageState extends State<OutageMapPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  hotspot['location'],
+                  (hotspot['location'] ?? 'Unknown').toString(),
                   style: const TextStyle(
                     color: ink,
                     fontSize: 24,
@@ -115,19 +82,19 @@ class _OutageMapPageState extends State<OutageMapPage> {
                 const SizedBox(height: 18),
                 _detailRow(
                   'Nearby reports',
-                  '${hotspot['reports']}',
+                  '${hotspot['reports'] ?? 0}',
                 ),
                 _detailRow(
                   'Risk level',
-                  hotspot['risk'],
+                  (hotspot['risk'] ?? 'Low').toString(),
                 ),
                 _detailRow(
                   'Status',
-                  hotspot['status'],
+                  (hotspot['status'] ?? 'Unverified').toString(),
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Illustrative hotspot data. '
+                  'Live hotspot data from Firestore. '
                   'Reports do not confirm a power outage.',
                   style: TextStyle(
                     color: muted,
@@ -184,335 +151,443 @@ class _OutageMapPageState extends State<OutageMapPage> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredHotspots = hotspots.where((hotspot) {
-      return selectedFilter == 'All' ||
-          hotspot['risk'] == selectedFilter;
-    }).toList();
-
-    final totalReports = hotspots.fold<int>(
-      0,
-      (sum, hotspot) => sum + (hotspot['reports'] as int),
-    );
-
-    return Scaffold(
-      backgroundColor: soft,
-      appBar: AppBar(
-        backgroundColor: soft,
-        foregroundColor: ink,
-        title: const Text(
-          'Outage Map & Hotspots',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(19, 15, 19, 30),
-        children: [
-          const Text(
-            'OUTAGE INTELLIGENCE',
-            style: TextStyle(
-              color: muted,
-              fontSize: 11,
-              letterSpacing: 2,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Spot the hotspots.',
-            style: TextStyle(
-              color: ink,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Explore reported power interruption clusters.',
-            style: TextStyle(color: muted, fontSize: 13),
-          ),
-          const SizedBox(height: 18),
-
-          // Summary Card
-          Container(
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF353E36),
-                  Color(0xFF1C2421),
-                ],
+    return StreamBuilder<List>(
+      stream: _backendService.getOutageHotspots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            backgroundColor: soft,
+            appBar: AppBar(
+              backgroundColor: soft,
+              foregroundColor: ink,
+              title: const Text(
+                'Outage Map & Hotspots',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-              borderRadius: BorderRadius.circular(21),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Nearby outage reports',
-                  style: TextStyle(
-                    color: Color(0xFFC5D0C3),
-                  ),
+            body: const Center(
+              child: CircularProgressIndicator(
+                color: yellow,
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Scaffold(
+            backgroundColor: soft,
+            appBar: AppBar(
+              backgroundColor: soft,
+              foregroundColor: ink,
+              title: const Text('Outage Map & Hotspots'),
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  'Unable to load outage data: ${snapshot.error}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: red),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  '$totalReports',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 43,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${hotspots.length} potential hotspots · Demo data',
-                  style: const TextStyle(
-                    color: Color(0xFFC5D0C3),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+              ),
+            ),
+          );
+        }
+
+        final hotspots = (snapshot.data ?? [])
+            .map(
+              (item) => Map<String, dynamic>.from(item as Map),
+            )
+            .toList();
+
+        final filteredHotspots = hotspots.where((hotspot) {
+          return selectedFilter == 'All' ||
+              hotspot['risk'] == selectedFilter;
+        }).toList();
+
+        final totalReports = hotspots.fold<int>(
+          0,
+          (sum, hotspot) =>
+              sum + ((hotspot['reports'] as num?)?.toInt() ?? 0),
+        );
+
+        return Scaffold(
+          backgroundColor: soft,
+          appBar: AppBar(
+            backgroundColor: soft,
+            foregroundColor: ink,
+            elevation: 0,
+            title: const Text(
+              'Outage Map & Hotspots',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(19, 15, 19, 30),
+            children: [
+              const Text(
+                'OUTAGE INTELLIGENCE',
+                style: TextStyle(
+                  color: muted,
+                  fontSize: 11,
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Spot the hotspots.',
+                style: TextStyle(
+                  color: ink,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Explore reported power interruption clusters.',
+                style: TextStyle(
+                  color: muted,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 18),
 
-          const SizedBox(height: 20),
-
-          // Illustrative Map
-          Container(
-            height: 270,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8EDE4),
-              borderRadius: BorderRadius.circular(21),
-              border: Border.all(color: line),
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Stack(
+              // Summary Card
+              Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF353E36),
+                      Color(0xFF1C2421),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(21),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _DemoMapPainter(),
+                    const Text(
+                      'Nearby outage reports',
+                      style: TextStyle(
+                        color: Color(0xFFC5D0C3),
                       ),
                     ),
-                    for (final hotspot in filteredHotspots)
-                      Positioned(
-                        left: (constraints.maxWidth - 44) *
-                            (hotspot['x'] as double),
-                        top: (constraints.maxHeight - 44) *
-                            (hotspot['y'] as double),
-                        child: GestureDetector(
-                          onTap: () => showHotspotDetails(hotspot),
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: riskColor(hotspot['risk']),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 3,
-                              ),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x33000000),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              '${hotspot['reports']}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '$totalReports',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 43,
+                        fontWeight: FontWeight.w800,
                       ),
-                    const Positioned(
-                      left: 12,
-                      bottom: 12,
-                      child: Text(
-                        'Illustrative map · Not GPS-based',
-                        style: TextStyle(
-                          color: muted,
-                          fontSize: 10,
-                        ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${hotspots.length} potential hotspots · Live Firestore Data',
+                      style: const TextStyle(
+                        color: Color(0xFFC5D0C3),
+                        fontSize: 12,
                       ),
                     ),
                   ],
-                );
-              },
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _LegendDot(color: red, label: 'High'),
-              SizedBox(width: 15),
-              _LegendDot(color: amber, label: 'Medium'),
-              SizedBox(width: 15),
-              _LegendDot(color: green, label: 'Low'),
-            ],
-          ),
-
-          const SizedBox(height: 23),
-
-          const Text(
-            'Filter by Risk',
-            style: TextStyle(
-              color: ink,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: ['All', 'High', 'Medium', 'Low'].map((risk) {
-              final selected = selectedFilter == risk;
-
-              return ChoiceChip(
-                label: Text(risk),
-                selected: selected,
-                selectedColor: yellow,
-                backgroundColor: Colors.white,
-                side: const BorderSide(color: line),
-                labelStyle: const TextStyle(
-                  color: ink,
-                  fontWeight: FontWeight.w600,
                 ),
-                onSelected: (_) {
-                  setState(() {
-                    selectedFilter = risk;
-                  });
-                },
-              );
-            }).toList(),
-          ),
+              ),
 
-          const SizedBox(height: 23),
+              const SizedBox(height: 20),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+              // Illustrative Map
+              Container(
+                height: 270,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8EDE4),
+                  borderRadius: BorderRadius.circular(21),
+                  border: Border.all(color: line),
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Stack(
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _DemoMapPainter(),
+                          ),
+                        ),
+                        for (int i = 0;
+                            i < filteredHotspots.length;
+                            i++)
+                          Positioned(
+                            left: (constraints.maxWidth - 44) *
+                                _getCoordinate(
+                                  filteredHotspots[i],
+                                  'x',
+                                  i,
+                                ),
+                            top: (constraints.maxHeight - 44) *
+                                _getCoordinate(
+                                  filteredHotspots[i],
+                                  'y',
+                                  i,
+                                ),
+                            child: GestureDetector(
+                              onTap: () => showHotspotDetails(
+                                filteredHotspots[i],
+                              ),
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: riskColor(
+                                    (filteredHotspots[i]['risk'] ??
+                                            'Low')
+                                        .toString(),
+                                  ),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x33000000),
+                                      blurRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  '${filteredHotspots[i]['reports'] ?? 0}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        const Positioned(
+                          left: 12,
+                          bottom: 12,
+                          child: Text(
+                            'Illustrative map · Not GPS-based',
+                            style: TextStyle(
+                              color: muted,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _LegendDot(color: red, label: 'High'),
+                  SizedBox(width: 15),
+                  _LegendDot(color: amber, label: 'Medium'),
+                  SizedBox(width: 15),
+                  _LegendDot(color: green, label: 'Low'),
+                ],
+              ),
+
+              const SizedBox(height: 23),
+
               const Text(
-                'Hotspot Locations',
+                'Filter by Risk',
                 style: TextStyle(
                   color: ink,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              Text(
-                '${filteredHotspots.length} areas',
-                style: const TextStyle(
-                  color: muted,
-                  fontSize: 12,
+
+              const SizedBox(height: 12),
+
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: ['All', 'High', 'Medium', 'Low'].map((risk) {
+                  final selected = selectedFilter == risk;
+
+                  return ChoiceChip(
+                    label: Text(risk),
+                    selected: selected,
+                    selectedColor: yellow,
+                    backgroundColor: Colors.white,
+                    side: const BorderSide(color: line),
+                    labelStyle: const TextStyle(
+                      color: ink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    onSelected: (_) {
+                      setState(() {
+                        selectedFilter = risk;
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+
+              const SizedBox(height: 23),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Hotspot Locations',
+                    style: TextStyle(
+                      color: ink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    '${filteredHotspots.length} areas',
+                    style: const TextStyle(
+                      color: muted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              if (filteredHotspots.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text('No hotspots found'),
+                  ),
+                )
+              else
+                ...filteredHotspots.map((hotspot) {
+                  final risk =
+                      (hotspot['risk'] ?? 'Low').toString();
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(21),
+                      border: Border.all(color: line),
+                    ),
+                    child: InkWell(
+                      onTap: () => showHotspotDetails(hotspot),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: riskBackground(risk),
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            child: Icon(
+                              Icons.location_on_outlined,
+                              color: riskColor(risk),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  (hotspot['location'] ?? 'Unknown')
+                                      .toString(),
+                                  style: const TextStyle(
+                                    color: ink,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  '${hotspot['reports'] ?? 0} nearby reports',
+                                  style: const TextStyle(
+                                    color: muted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: riskBackground(risk),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              risk,
+                              style: TextStyle(
+                                color: riskColor(risk),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+
+              const SizedBox(height: 15),
+
+              const Center(
+                child: Text(
+                  'Live Firestore synchronization active',
+                  style: TextStyle(
+                    color: muted,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
           ),
-
-          const SizedBox(height: 12),
-
-          if (filteredHotspots.isEmpty)
-            const Center(child: Text('No hotspots found'))
-          else
-            ...filteredHotspots.map((hotspot) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(21),
-                  border: Border.all(color: line),
-                ),
-                child: InkWell(
-                  onTap: () => showHotspotDetails(hotspot),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: riskBackground(hotspot['risk']),
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        child: Icon(
-                          Icons.location_on_outlined,
-                          color: riskColor(hotspot['risk']),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              hotspot['location'],
-                              style: const TextStyle(
-                                color: ink,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              '${hotspot['reports']} nearby reports',
-                              style: const TextStyle(
-                                color: muted,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: riskBackground(hotspot['risk']),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          hotspot['risk'],
-                          style: TextStyle(
-                            color: riskColor(hotspot['risk']),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-
-          const SizedBox(height: 15),
-          const Center(
-            child: Text(
-              'Demo hotspots · Not verified outage locations',
-              style: TextStyle(
-                color: muted,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  double _getCoordinate(
+    Map<String, dynamic> hotspot,
+    String key,
+    int index,
+  ) {
+    final value = hotspot[key];
+
+    if (value is num) {
+      return value.toDouble().clamp(0.0, 1.0);
+    }
+
+    const defaultX = [0.45, 0.30, 0.65, 0.72];
+    const defaultY = [0.55, 0.35, 0.38, 0.72];
+
+    if (key == 'x') {
+      return defaultX[index % defaultX.length];
+    }
+
+    return defaultY[index % defaultY.length];
   }
 }
 
