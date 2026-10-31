@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../services/admin_backend_service.dart';
 
 class AnalyticsReportsPage extends StatefulWidget {
@@ -59,16 +60,27 @@ class _AnalyticsReportsPageState extends State<AnalyticsReportsPage> {
           ),
           const SizedBox(height: 20),
 
-          // 1. Monthly reading completion Card (Stream-powered)
-          StreamBuilder>(
+          // Monthly reading completion from the Firebase backend.
+          StreamBuilder<dynamic>(
             stream: _backendService.getAssignmentProgressSummary(),
             builder: (context, snapshot) {
-              final data = snapshot.data ?? {};
-              final int totalCompleted = data['totalCompleted'] ?? 0;
-              final int totalAssigned = data['totalAssigned'] ?? 0;
-              final double percentage = data['percentage'] ?? 0.0;
-              final int pending = totalAssigned > totalCompleted ? totalAssigned - totalCompleted : 0;
-              final double progressValue = totalAssigned > 0 ? (percentage / 100).clamp(0.0, 1.0) : 0.0;
+              final rawData = snapshot.data;
+              final data = rawData is Map
+                  ? Map<String, dynamic>.from(rawData)
+                  : <String, dynamic>{};
+
+              final totalCompleted =
+                  int.tryParse('${data['totalCompleted'] ?? 0}') ?? 0;
+              final totalAssigned =
+                  int.tryParse('${data['totalAssigned'] ?? 0}') ?? 0;
+              final percentage =
+                  double.tryParse('${data['percentage'] ?? 0}') ?? 0.0;
+              final pending = (totalAssigned - totalCompleted).clamp(
+                0,
+                totalAssigned,
+              );
+              final progressValue =
+                  totalAssigned > 0 ? (percentage / 100).clamp(0.0, 1.0) : 0.0;
 
               return Container(
                 padding: const EdgeInsets.all(22),
@@ -86,13 +98,11 @@ class _AnalyticsReportsPageState extends State<AnalyticsReportsPage> {
                   children: [
                     const Text(
                       'Monthly reading completion',
-                      style: TextStyle(
-                        color: Color(0xFFC5D0C3),
-                      ),
+                      style: TextStyle(color: Color(0xFFC5D0C3)),
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '${percentage.toStringAsFixed(0)}%',
+                      snapshot.hasError ? '--' : '${percentage.toStringAsFixed(0)}%',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 43,
@@ -101,7 +111,7 @@ class _AnalyticsReportsPageState extends State<AnalyticsReportsPage> {
                     ),
                     const SizedBox(height: 14),
                     LinearProgressIndicator(
-                      value: progressValue,
+                      value: snapshot.hasError ? 0 : progressValue,
                       minHeight: 9,
                       backgroundColor: const Color(0xFF566057),
                       color: yellow,
@@ -111,7 +121,9 @@ class _AnalyticsReportsPageState extends State<AnalyticsReportsPage> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '$totalCompleted completed · $pending pending',
+                      snapshot.hasError
+                          ? 'Unable to load reading progress'
+                          : '$totalCompleted completed · $pending pending',
                       style: const TextStyle(
                         color: Color(0xFFC5D0C3),
                         fontSize: 12,
@@ -125,14 +137,16 @@ class _AnalyticsReportsPageState extends State<AnalyticsReportsPage> {
 
           const SizedBox(height: 18),
 
-          // 2. Active Meters and Readers Metrics
+          // Active meter and reader counts.
           Row(
             children: [
               Expanded(
                 child: StreamBuilder<int>(
                   stream: _backendService.getActiveMetersCount(),
                   builder: (context, snapshot) {
-                    final meters = snapshot.hasData ? snapshot.data.toString() : '...';
+                    final meters = snapshot.hasData
+                        ? snapshot.data.toString()
+                        : (snapshot.hasError ? '--' : '...');
                     return _metric(
                       'Active meters',
                       meters,
@@ -146,7 +160,9 @@ class _AnalyticsReportsPageState extends State<AnalyticsReportsPage> {
                 child: StreamBuilder<int>(
                   stream: _backendService.getActiveReadersCount(),
                   builder: (context, snapshot) {
-                    final readers = snapshot.hasData ? snapshot.data.toString() : '...';
+                    final readers = snapshot.hasData
+                        ? snapshot.data.toString()
+                        : (snapshot.hasError ? '--' : '...');
                     return _metric(
                       'Active readers',
                       readers,
@@ -169,27 +185,33 @@ class _AnalyticsReportsPageState extends State<AnalyticsReportsPage> {
           ),
           const SizedBox(height: 12),
 
-          // 3. Operational Insights using Live Streams
-          StreamBuilder>(
+          // Completed and pending readings use the same live progress stream.
+          StreamBuilder<dynamic>(
             stream: _backendService.getAssignmentProgressSummary(),
-            builder: (context, assignSnapshot) {
-              final assignData = assignSnapshot.data ?? {};
-              final completed = assignData['totalCompleted']?.toString() ?? '0';
-              final assigned = assignData['totalAssigned']?.toInt() ?? 0;
-              final pendingVal = assigned > int.parse(completed) ? assigned - int.parse(completed) : 0;
+            builder: (context, snapshot) {
+              final rawData = snapshot.data;
+              final data = rawData is Map
+                  ? Map<String, dynamic>.from(rawData)
+                  : <String, dynamic>{};
+
+              final completed =
+                  int.tryParse('${data['totalCompleted'] ?? 0}') ?? 0;
+              final assigned =
+                  int.tryParse('${data['totalAssigned'] ?? 0}') ?? 0;
+              final pending = (assigned - completed).clamp(0, assigned);
 
               return Column(
                 children: [
                   _insight(
                     icon: Icons.check_circle_outline,
                     title: 'Completed readings',
-                    value: completed,
+                    value: snapshot.hasError ? '--' : completed.toString(),
                     color: green,
                   ),
                   _insight(
                     icon: Icons.pending_actions_outlined,
                     title: 'Pending readings',
-                    value: pendingVal.toString(),
+                    value: snapshot.hasError ? '--' : pending.toString(),
                     color: amber,
                   ),
                 ],
@@ -200,7 +222,10 @@ class _AnalyticsReportsPageState extends State<AnalyticsReportsPage> {
           StreamBuilder<int>(
             stream: _backendService.getPendingOutagesCount(),
             builder: (context, outageSnapshot) {
-              final outagesCount = outageSnapshot.hasData ? outageSnapshot.data.toString() : '...';
+              final outagesCount = outageSnapshot.hasData
+                  ? outageSnapshot.data.toString()
+                  : (outageSnapshot.hasError ? '--' : '...');
+
               return Column(
                 children: [
                   _insight(

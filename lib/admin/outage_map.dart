@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/admin_backend_service.dart'; 
+import '../services/admin_backend_service.dart';
 
 class OutageMapPage extends StatefulWidget {
   const OutageMapPage({super.key});
@@ -9,17 +9,18 @@ class OutageMapPage extends StatefulWidget {
 }
 
 class _OutageMapPageState extends State<OutageMapPage> {
-  static const yellow = Color(0xFFF5C542);
-  static const ink = Color(0xFF202523);
-  static const soft = Color(0xFFF4F5F0);
-  static const muted = Color(0xFF626B66);
-  static const line = Color(0xFFDEE3DB);
-  static const green = Color(0xFF237548);
-  static const red = Color(0xFFB94338);
-  static const amber = Color(0xFF936715);
+  static const Color yellow = Color(0xFFF5C542);
+  static const Color ink = Color(0xFF202523);
+  static const Color soft = Color(0xFFF4F5F0);
+  static const Color muted = Color(0xFF626B66);
+  static const Color line = Color(0xFFDEE3DB);
+  static const Color green = Color(0xFF237548);
+  static const Color red = Color(0xFFB94338);
+  static const Color amber = Color(0xFF936715);
+
+  final AdminBackendService _backendService = AdminBackendService();
 
   String selectedFilter = 'All';
-  final AdminBackendService _backendService = AdminBackendService();
 
   Color riskColor(String risk) {
     switch (risk) {
@@ -71,7 +72,7 @@ class _OutageMapPageState extends State<OutageMapPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  hotspot['location'],
+                  (hotspot['location'] ?? 'Unknown').toString(),
                   style: const TextStyle(
                     color: ink,
                     fontSize: 24,
@@ -79,9 +80,18 @@ class _OutageMapPageState extends State<OutageMapPage> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                _detailRow('Nearby reports', '${hotspot['reports']}'),
-                _detailRow('Risk level', hotspot['risk']),
-                _detailRow('Status', hotspot['status']),
+                _detailRow(
+                  'Nearby reports',
+                  '${hotspot['reports'] ?? 0}',
+                ),
+                _detailRow(
+                  'Risk level',
+                  (hotspot['risk'] ?? 'Low').toString(),
+                ),
+                _detailRow(
+                  'Status',
+                  (hotspot['status'] ?? 'Unverified').toString(),
+                ),
                 const SizedBox(height: 14),
                 const Text(
                   'Live hotspot data from Firestore. '
@@ -150,21 +160,57 @@ class _OutageMapPageState extends State<OutageMapPage> {
             appBar: AppBar(
               backgroundColor: soft,
               foregroundColor: ink,
-              title: const Text('Outage Map & Hotspots', style: TextStyle(fontWeight: FontWeight.w800)),
+              title: const Text(
+                'Outage Map & Hotspots',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-            body: const Center(child: CircularProgressIndicator(color: yellow)),
+            body: const Center(
+              child: CircularProgressIndicator(
+                color: yellow,
+              ),
+            ),
           );
         }
 
-        final hotspots = snapshot.data ?? [];
+        if (snapshot.hasError) {
+          return Scaffold(
+            backgroundColor: soft,
+            appBar: AppBar(
+              backgroundColor: soft,
+              foregroundColor: ink,
+              title: const Text('Outage Map & Hotspots'),
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  'Unable to load outage data: ${snapshot.error}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: red),
+                ),
+              ),
+            ),
+          );
+        }
+
+        final hotspots = (snapshot.data ?? [])
+            .map(
+              (item) => Map<String, dynamic>.from(item as Map),
+            )
+            .toList();
 
         final filteredHotspots = hotspots.where((hotspot) {
-          return selectedFilter == 'All' || hotspot['risk'] == selectedFilter;
+          return selectedFilter == 'All' ||
+              hotspot['risk'] == selectedFilter;
         }).toList();
 
         final totalReports = hotspots.fold<int>(
           0,
-          (sum, hotspot) => sum + (hotspot['reports'] as int),
+          (sum, hotspot) =>
+              sum + ((hotspot['reports'] as num?)?.toInt() ?? 0),
         );
 
         return Scaffold(
@@ -172,9 +218,12 @@ class _OutageMapPageState extends State<OutageMapPage> {
           appBar: AppBar(
             backgroundColor: soft,
             foregroundColor: ink,
+            elevation: 0,
             title: const Text(
               'Outage Map & Hotspots',
-              style: TextStyle(fontWeight: FontWeight.w800),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           body: ListView(
@@ -201,7 +250,10 @@ class _OutageMapPageState extends State<OutageMapPage> {
               const SizedBox(height: 6),
               const Text(
                 'Explore reported power interruption clusters.',
-                style: TextStyle(color: muted, fontSize: 13),
+                style: TextStyle(
+                  color: muted,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 18),
 
@@ -267,18 +319,36 @@ class _OutageMapPageState extends State<OutageMapPage> {
                             painter: _DemoMapPainter(),
                           ),
                         ),
-                        for (final hotspot in filteredHotspots)
+                        for (int i = 0;
+                            i < filteredHotspots.length;
+                            i++)
                           Positioned(
-                            left: (constraints.maxWidth - 44) * (hotspot['x'] as double),
-                            top: (constraints.maxHeight - 44) * (hotspot['y'] as double),
+                            left: (constraints.maxWidth - 44) *
+                                _getCoordinate(
+                                  filteredHotspots[i],
+                                  'x',
+                                  i,
+                                ),
+                            top: (constraints.maxHeight - 44) *
+                                _getCoordinate(
+                                  filteredHotspots[i],
+                                  'y',
+                                  i,
+                                ),
                             child: GestureDetector(
-                              onTap: () => showHotspotDetails(hotspot),
+                              onTap: () => showHotspotDetails(
+                                filteredHotspots[i],
+                              ),
                               child: Container(
                                 width: 44,
                                 height: 44,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: riskColor(hotspot['risk']),
+                                  color: riskColor(
+                                    (filteredHotspots[i]['risk'] ??
+                                            'Low')
+                                        .toString(),
+                                  ),
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: Colors.white,
@@ -292,7 +362,7 @@ class _OutageMapPageState extends State<OutageMapPage> {
                                   ],
                                 ),
                                 child: Text(
-                                  '${hotspot['reports']}',
+                                  '${filteredHotspots[i]['reports'] ?? 0}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 13,
@@ -306,7 +376,7 @@ class _OutageMapPageState extends State<OutageMapPage> {
                           left: 12,
                           bottom: 12,
                           child: Text(
-                            'Illustrative map · Firebase synced',
+                            'Illustrative map · Not GPS-based',
                             style: TextStyle(
                               color: muted,
                               fontSize: 10,
@@ -342,6 +412,7 @@ class _OutageMapPageState extends State<OutageMapPage> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
+
               const SizedBox(height: 12),
 
               Wrap(
@@ -403,6 +474,9 @@ class _OutageMapPageState extends State<OutageMapPage> {
                 )
               else
                 ...filteredHotspots.map((hotspot) {
+                  final risk =
+                      (hotspot['risk'] ?? 'Low').toString();
+
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
@@ -419,21 +493,23 @@ class _OutageMapPageState extends State<OutageMapPage> {
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: riskBackground(hotspot['risk']),
+                              color: riskBackground(risk),
                               borderRadius: BorderRadius.circular(13),
                             ),
                             child: Icon(
                               Icons.location_on_outlined,
-                              color: riskColor(hotspot['risk']),
+                              color: riskColor(risk),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  hotspot['location'],
+                                  (hotspot['location'] ?? 'Unknown')
+                                      .toString(),
                                   style: const TextStyle(
                                     color: ink,
                                     fontSize: 15,
@@ -442,7 +518,7 @@ class _OutageMapPageState extends State<OutageMapPage> {
                                 ),
                                 const SizedBox(height: 5),
                                 Text(
-                                  '${hotspot['reports']} nearby reports',
+                                  '${hotspot['reports'] ?? 0} nearby reports',
                                   style: const TextStyle(
                                     color: muted,
                                     fontSize: 12,
@@ -457,13 +533,13 @@ class _OutageMapPageState extends State<OutageMapPage> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: riskBackground(hotspot['risk']),
+                              color: riskBackground(risk),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              hotspot['risk'],
+                              risk,
                               style: TextStyle(
-                                color: riskColor(hotspot['risk']),
+                                color: riskColor(risk),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -476,6 +552,7 @@ class _OutageMapPageState extends State<OutageMapPage> {
                 }),
 
               const SizedBox(height: 15),
+
               const Center(
                 child: Text(
                   'Live Firestore synchronization active',
@@ -491,8 +568,30 @@ class _OutageMapPageState extends State<OutageMapPage> {
       },
     );
   }
+
+  double _getCoordinate(
+    Map<String, dynamic> hotspot,
+    String key,
+    int index,
+  ) {
+    final value = hotspot[key];
+
+    if (value is num) {
+      return value.toDouble().clamp(0.0, 1.0);
+    }
+
+    const defaultX = [0.45, 0.30, 0.65, 0.72];
+    const defaultY = [0.55, 0.35, 0.38, 0.72];
+
+    if (key == 'x') {
+      return defaultX[index % defaultX.length];
+    }
+
+    return defaultY[index % defaultY.length];
+  }
 }
 
+// Decorative illustration only, not a geographic map.
 class _DemoMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {

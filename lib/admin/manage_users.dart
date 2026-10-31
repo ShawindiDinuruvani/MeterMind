@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../services/admin_backend_service.dart';
 
 class ManageUsersPage extends StatefulWidget {
@@ -10,15 +11,15 @@ class ManageUsersPage extends StatefulWidget {
 }
 
 class _ManageUsersPageState extends State<ManageUsersPage> {
-  final AdminBackendService _backendService = AdminBackendService();
+  static const Color yellow = Color(0xFFF5C542);
+  static const Color ink = Color(0xFF202523);
+  static const Color soft = Color(0xFFF4F5F0);
+  static const Color muted = Color(0xFF626B66);
+  static const Color line = Color(0xFFDEE3DB);
+  static const Color green = Color(0xFF237548);
+  static const Color red = Color(0xFFB94338);
 
-  static const yellow = Color(0xFFF5C542);
-  static const ink = Color(0xFF202523);
-  static const soft = Color(0xFFF4F5F0);
-  static const muted = Color(0xFF626B66);
-  static const line = Color(0xFFDEE3DB);
-  static const green = Color(0xFF237548);
-  static const red = Color(0xFFB94338);
+  final AdminBackendService _backendService = AdminBackendService();
 
   String searchText = '';
   String selectedRole = 'All';
@@ -43,7 +44,9 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
         stream: _backendService.getUsers(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: yellow),
+            );
           }
 
           if (snapshot.hasError) {
@@ -51,22 +54,25 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
           }
 
           final rawDocs = snapshot.data?.docs ?? [];
-          final users = rawDocs.map((doc) {
+
+          final List<Map<String, dynamic>> users = rawDocs.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
-            return {
+
+            return <String, dynamic>{
               'id': doc.id,
-              'name': data['name'] ?? '',
-              'email': data['email'] ?? '',
-              'role': data['role'] ?? 'Customer',
-              'status': data['status'] ?? 'Active',
+              'name': (data['name'] ?? 'Unknown').toString(),
+              'email': (data['email'] ?? '').toString(),
+              'role': (data['role'] ?? 'Customer').toString(),
+              'status': (data['status'] ?? 'Active').toString(),
             };
           }).toList();
 
+          final query = searchText.toLowerCase();
+
           final filteredUsers = users.where((user) {
-            final query = searchText.toLowerCase();
             final matchesSearch =
-                user['name']!.toLowerCase().contains(query) ||
-                user['email']!.toLowerCase().contains(query);
+                user['name'].toString().toLowerCase().contains(query) ||
+                user['email'].toString().toLowerCase().contains(query);
 
             final matchesRole =
                 selectedRole == 'All' || user['role'] == selectedRole;
@@ -210,7 +216,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                 ),
                 items: ['All', 'Customer', 'Meter Reader']
                     .map(
-                      (role) => DropdownMenuItem(
+                      (role) => DropdownMenuItem<String>(
                         value: role,
                         child: Text(role),
                       ),
@@ -300,11 +306,10 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    user['name']!,
+                                    user['name'].toString(),
                                     style: const TextStyle(
                                       color: ink,
                                       fontSize: 15,
@@ -313,7 +318,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    user['email']!,
+                                    user['email'].toString(),
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       color: muted,
@@ -330,36 +335,49 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                                 color: ink,
                               ),
                               onSelected: (action) async {
-                                if (action == 'status') {
-                                  final newStatus =
-                                      isActive ? 'Inactive' : 'Active';
-                                  await _backendService.updateUserStatus(
-                                    user['id']!,
-                                    newStatus,
-                                  );
+                                final userId = user['id'].toString();
+                                final userName = user['name'].toString();
 
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
+                                try {
+                                  if (action == 'status') {
+                                    final newStatus =
+                                        isActive ? 'Inactive' : 'Active';
+
+                                    await _backendService.updateUserStatus(
+                                      userId,
+                                      newStatus,
+                                    );
+
+                                    if (!context.mounted) return;
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          '${user['name']} status updated to $newStatus.',
+                                          '$userName status updated to $newStatus.',
                                         ),
                                       ),
                                     );
-                                  }
-                                } else if (action == 'delete') {
-                                  await _backendService.deleteUser(user['id']!);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
+                                  } else if (action == 'delete') {
+                                    await _backendService.deleteUser(userId);
+
+                                    if (!context.mounted) return;
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text(
-                                          '${user['name']} deleted.',
-                                        ),
+                                        content: Text('$userName deleted.'),
                                       ),
                                     );
                                   }
+                                } catch (error) {
+                                  if (!context.mounted) return;
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Action failed: $error',
+                                      ),
+                                    ),
+                                  );
                                 }
                               },
                               itemBuilder: (context) => [
@@ -403,7 +421,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                user['role']!,
+                                user['role'].toString(),
                                 style: const TextStyle(
                                   color: ink,
                                   fontSize: 11,
@@ -424,7 +442,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                user['status']!,
+                                user['status'].toString(),
                                 style: TextStyle(
                                   color: isActive ? green : red,
                                   fontSize: 11,

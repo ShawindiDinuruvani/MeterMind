@@ -18,12 +18,13 @@ class _ReadingProgressPageState extends State<ReadingProgressPage> {
   static const Color green = Color(0xFF237548);
   static const Color amber = Color(0xFF936715);
 
-  String searchText = '';
-  String selectedStatus = 'All';
   final AdminBackendService _backendService = AdminBackendService();
 
+  String searchText = '';
+  String selectedStatus = 'All';
+
   String getStatus(int completed, int total) {
-    if (completed >= total && total > 0) return 'Completed';
+    if (total > 0 && completed >= total) return 'Completed';
     if (completed == 0) return 'Pending';
     return 'In Progress';
   }
@@ -37,11 +38,38 @@ class _ReadingProgressPageState extends State<ReadingProgressPage> {
           return Scaffold(
             backgroundColor: soft,
             appBar: AppBar(
-              title: const Text('Reading Progress', style: TextStyle(fontWeight: FontWeight.w800)),
+              title: const Text(
+                'Reading Progress',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              backgroundColor: soft,
+              foregroundColor: ink,
+              elevation: 0,
+            ),
+            body: const Center(
+              child: CircularProgressIndicator(color: yellow),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Scaffold(
+            backgroundColor: soft,
+            appBar: AppBar(
+              title: const Text('Reading Progress'),
               backgroundColor: soft,
               foregroundColor: ink,
             ),
-            body: const Center(child: CircularProgressIndicator(color: yellow)),
+            body: const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Unable to load reading progress. Please try again.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: muted),
+                ),
+              ),
+            ),
           );
         }
 
@@ -49,28 +77,35 @@ class _ReadingProgressPageState extends State<ReadingProgressPage> {
 
         final totalMeters = readings.fold<int>(
           0,
-          (sum, item) => sum + (item['total'] as int),
+          (sum, item) =>
+              sum + ((item['total'] as num?)?.toInt() ?? 0),
         );
 
         final completedMeters = readings.fold<int>(
           0,
-          (sum, item) => sum + (item['completed'] as int),
+          (sum, item) =>
+              sum + ((item['completed'] as num?)?.toInt() ?? 0),
         );
 
-        final pendingMeters = totalMeters - completedMeters;
+        final pendingMeters =
+            (totalMeters - completedMeters).clamp(0, totalMeters);
 
-        final overallProgress =
-            totalMeters == 0 ? 0.0 : completedMeters / totalMeters;
+        final overallProgress = totalMeters == 0
+            ? 0.0
+            : (completedMeters / totalMeters).clamp(0.0, 1.0);
 
         final filteredReadings = readings.where((item) {
-          final reader = (item['reader'] as String).toLowerCase();
-          final area = (item['area'] as String).toLowerCase();
+          final reader =
+              (item['reader'] ?? '').toString().toLowerCase();
+          final area =
+              (item['area'] ?? '').toString().toLowerCase();
           final query = searchText.toLowerCase();
 
-          final status = getStatus(
-            item['completed'] as int,
-            item['total'] as int,
-          );
+          final completed =
+              (item['completed'] as num?)?.toInt() ?? 0;
+          final total = (item['total'] as num?)?.toInt() ?? 0;
+
+          final status = getStatus(completed, total);
 
           final matchesSearch =
               reader.contains(query) || area.contains(query);
@@ -328,9 +363,15 @@ class _ReadingProgressPageState extends State<ReadingProgressPage> {
                 ),
 
               ...filteredReadings.map((item) {
-                final total = item['total'] as int;
-                final completed = item['completed'] as int;
-                final progress = total == 0 ? 0.0 : completed / total;
+                final total =
+                    (item['total'] as num?)?.toInt() ?? 0;
+                final completed =
+                    (item['completed'] as num?)?.toInt() ?? 0;
+
+                final progress = total == 0
+                    ? 0.0
+                    : (completed / total).clamp(0.0, 1.0);
+
                 final status = getStatus(completed, total);
 
                 final statusColor = status == 'Completed'
@@ -371,7 +412,8 @@ class _ReadingProgressPageState extends State<ReadingProgressPage> {
                                   CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  item['reader'] as String,
+                                  (item['reader'] ?? 'Unknown Reader')
+                                      .toString(),
                                   style: const TextStyle(
                                     color: ink,
                                     fontSize: 15,
@@ -380,7 +422,8 @@ class _ReadingProgressPageState extends State<ReadingProgressPage> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  item['area'] as String,
+                                  (item['area'] ?? 'Unknown Area')
+                                      .toString(),
                                   style: const TextStyle(
                                     color: muted,
                                     fontSize: 12,
@@ -420,8 +463,7 @@ class _ReadingProgressPageState extends State<ReadingProgressPage> {
                         child: LinearProgressIndicator(
                           value: progress,
                           minHeight: 8,
-                          backgroundColor:
-                              const Color(0xFFE7E9E3),
+                          backgroundColor: const Color(0xFFE7E9E3),
                           valueColor:
                               const AlwaysStoppedAnimation<Color>(
                             yellow,
