@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/admin_backend_service.dart';
+import '../services/auth_service.dart';
+import '../screens/login_screen.dart';
 
 import 'manage_users.dart';
 import 'manage_meters.dart';
@@ -63,7 +65,14 @@ class AdminApp extends StatelessWidget {
 
 // Main Admin Navigation
 class AdminDashboard extends StatefulWidget {
-  const AdminDashboard({super.key});
+  final VoidCallback? onToggleTheme;
+  final bool isDarkTheme;
+
+  const AdminDashboard({
+    super.key,
+    this.onToggleTheme,
+    this.isDarkTheme = false,
+  });
 
   @override
   State<AdminDashboard> createState() => _AdminDashboardState();
@@ -203,6 +212,56 @@ class _DashboardHomeState extends State<DashboardHome> {
                   content: Text(
                     'Notifications will be available soon.',
                   ),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Sign Out',
+            icon: const Icon(Icons.logout_rounded, color: MMColors.ink),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (dialogCtx) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(21)),
+                  title: const Text(
+                    'Sign out of Admin?',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  content: const Text(
+                    'Are you sure you want to end your administrative session?',
+                    style: TextStyle(fontSize: 13.5, color: MMColors.muted),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogCtx),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: MMColors.red,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(100, 42),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(dialogCtx);
+                        await AuthService.instance.signOut();
+                        if (context.mounted) {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LoginScreen(),
+                            ),
+                            (route) => false,
+                          );
+                        }
+                      },
+                      child: const Text('Sign out'),
+                    ),
+                  ],
                 ),
               );
             },

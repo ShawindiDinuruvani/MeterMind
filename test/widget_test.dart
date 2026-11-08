@@ -6,7 +6,9 @@ import 'package:metermind/main.dart';
 import 'package:metermind/models/assignment_model.dart';
 import 'package:metermind/models/reading_model.dart';
 import 'package:metermind/models/reader_model.dart';
+import 'package:metermind/models/user_model.dart';
 import 'package:metermind/services/ai_service.dart';
+import 'package:metermind/services/auth_service.dart';
 import 'package:metermind/screens/outage_page.dart';
 import 'package:metermind/screens/recommendation_page.dart';
 import 'package:metermind/screens/profile_page.dart';
@@ -171,6 +173,50 @@ void main() {
 
       final fromMap = ReadingModel.fromMap(map, 'R-01');
       expect(fromMap.currentReading, 15820);
+    });
+  });
+
+  group('AuthService & Role-Based Auth Tests', () {
+    final authService = AuthService.instance;
+
+    test('Quick demo login sets correct user and role', () {
+      // Test Customer demo login
+      authService.quickDemoLogin(UserRole.customer);
+      expect(authService.isAuthenticated, isTrue);
+      expect(authService.currentUser?.role, UserRole.customer);
+      expect(authService.currentUser?.name, 'Tharusha Wakwella');
+
+      // Test Meter Reader demo login
+      authService.quickDemoLogin(UserRole.reader);
+      expect(authService.currentUser?.role, UserRole.reader);
+      expect(authService.currentUser?.employeeCode, 'MR001');
+
+      // Test Admin demo login
+      authService.quickDemoLogin(UserRole.admin);
+      expect(authService.currentUser?.role, UserRole.admin);
+      expect(authService.currentUser?.name, 'Senaka De Silva');
+    });
+
+    test('Registration creates user with proper role and parameters', () async {
+      final user = await authService.registerUser(
+        name: 'Kamal Jayawardena',
+        email: 'kamal.test@metermind.lk',
+        password: 'password123',
+        role: UserRole.customer,
+        meterId: 'MM-09999',
+        area: 'Maharagama',
+      );
+
+      expect(user.name, 'Kamal Jayawardena');
+      expect(user.role, UserRole.customer);
+      expect(user.meterId, 'MM-09999');
+      expect(authService.currentUser?.email, 'kamal.test@metermind.lk');
+    });
+
+    test('Sign out clears authenticated user', () async {
+      await authService.signOut();
+      expect(authService.isAuthenticated, isFalse);
+      expect(authService.currentUser, isNull);
     });
   });
 }

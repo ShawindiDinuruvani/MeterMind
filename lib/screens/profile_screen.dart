@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/reader_model.dart';
 import '../services/firebase_service.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -225,9 +226,7 @@ class ProfileScreen extends StatelessWidget {
                             ),
                             onPressed: () async {
                               Navigator.pop(dialogCtx);
-                              try {
-                                await FirebaseAuth.instance.signOut();
-                              } catch (_) {}
+                              await AuthService.instance.signOut();
 
                               if (context.mounted) {
                                 Navigator.pushAndRemoveUntil(

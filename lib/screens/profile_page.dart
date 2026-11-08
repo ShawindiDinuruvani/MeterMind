@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-
+import '../services/auth_service.dart';
 import '../widgets/app_header.dart';
+import 'login_screen.dart';
+import 'notifications_screen.dart';
+import 'settings_screen.dart';
+import 'support_screen.dart';
 
 const Color _profileBackground = Color(0xFFF4F5F0);
 const Color _profileInk = Color(0xFF17201D);
@@ -10,7 +14,14 @@ const Color _profilePale = Color(0xFFEEF1E8);
 const Color _profileYellow = Color(0xFFFFF3D7);
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  final VoidCallback? onToggleTheme;
+  final bool isDarkTheme;
+
+  const ProfilePage({
+    super.key,
+    this.onToggleTheme,
+    this.isDarkTheme = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -60,32 +71,41 @@ class ProfilePage extends StatelessWidget {
                     const SizedBox(height: 17),
                     _ProfileActionButton(
                       label: 'Notifications',
-                      onPressed: () => _showInfoSheet(
-                        context,
-                        title: 'Notifications',
-                        description: 'Notification preferences will be available here. This prototype does not yet send push notifications.',
-                        icon: Icons.notifications_none_rounded,
-                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationsScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _ProfileActionButton(
                       label: 'Settings',
-                      onPressed: () => _showInfoSheet(
-                        context,
-                        title: 'Settings',
-                        description: 'Account preferences and app settings can be managed here in a future version.',
-                        icon: Icons.settings_outlined,
-                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SettingsScreen(
+                              onToggleTheme: onToggleTheme ?? () {},
+                              isDarkTheme: isDarkTheme,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _ProfileActionButton(
                       label: 'Help & support',
-                      onPressed: () => _showInfoSheet(
-                        context,
-                        title: 'Help & support',
-                        description: 'For this prototype, support messaging is not connected yet. You can add FAQs and contact details here.',
-                        icon: Icons.support_agent_rounded,
-                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SupportScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     _ProfileActionButton(
@@ -97,57 +117,6 @@ class ProfilePage extends StatelessWidget {
               ),
             );
           },
-        ),
-      ),
-    );
-  }
-
-  void _showInfoSheet(
-    BuildContext context, {
-    required String title,
-    required String description,
-    required IconData icon,
-  }) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: _profileBackground,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: _profilePale,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Icon(icon, color: _profileInk, size: 25),
-              ),
-              const SizedBox(height: 17),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: _profileInk,
-                  fontSize: 23,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                description,
-                style: const TextStyle(
-                  color: _profileMuted,
-                  fontSize: 14,
-                  height: 1.55,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -172,15 +141,21 @@ class ProfilePage extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(dialogContext);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Demo only: sign-out is not connected to authentication.',
+              await AuthService.instance.signOut();
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LoginScreen(
+                      onToggleTheme: onToggleTheme,
+                      isDarkTheme: isDarkTheme,
+                    ),
                   ),
-                ),
-              );
+                  (route) => false,
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: _profileYellow,
@@ -200,6 +175,20 @@ class _ProfileDetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = AuthService.instance.currentUser;
+    final name = (user?.name.isNotEmpty == true) ? user!.name : 'Tharusha Wakwella';
+    final meterId = (user?.meterId?.isNotEmpty == true) ? user!.meterId! : 'MM-04218';
+    final area = (user?.area?.isNotEmpty == true) ? user!.area! : 'Homagama';
+    final email = (user?.email.isNotEmpty == true) ? user!.email : 'demo@example.com';
+
+    String initials = 'TW';
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      initials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    } else if (parts.isNotEmpty && parts[0].isNotEmpty) {
+      initials = parts[0].substring(0, parts[0].length >= 2 ? 2 : 1).toUpperCase();
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
@@ -221,35 +210,35 @@ class _ProfileDetailsCard extends StatelessWidget {
                   color: _profilePale,
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: const Text(
-                  'TW',
-                  style: TextStyle(
+                child: Text(
+                  initials,
+                  style: const TextStyle(
                     color: _profileInk,
-                    fontSize: 23,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               const SizedBox(width: 16),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Tharusha Wakwella',
+                      name,
                       textAlign: TextAlign.right,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: _profileInk,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                         height: 1.3,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
-                      'Customer · MM-04218',
+                      'Customer · $meterId',
                       textAlign: TextAlign.right,
-                      style: TextStyle(color: _profileMuted, fontSize: 14),
+                      style: const TextStyle(color: _profileMuted, fontSize: 14),
                     ),
                   ],
                 ),
@@ -258,11 +247,11 @@ class _ProfileDetailsCard extends StatelessWidget {
           ),
           const SizedBox(height: 21),
           const Divider(height: 1, color: _profileBorder),
-          const _ProfileInfoRow(label: 'Area', value: 'Homagama'),
-          const _ProfileInfoRow(label: 'Contact', value: 'demo@example.com'),
-          const _ProfileInfoRow(
+          _ProfileInfoRow(label: 'Area', value: area),
+          _ProfileInfoRow(label: 'Contact', value: email),
+          _ProfileInfoRow(
             label: 'Address',
-            value: '24 Temple Road',
+            value: user?.area != null ? 'Temple Road, $area' : '24 Temple Road',
             isLast: true,
           ),
         ],
