@@ -179,34 +179,65 @@ void main() {
   group('AuthService & Role-Based Auth Tests', () {
     final authService = AuthService.instance;
 
-    test('Quick demo login sets correct user and role', () {
-      // Test Customer demo login
-      authService.quickDemoLogin(UserRole.customer);
+    test('Role assignment sets correct user and role', () {
+      // Test Customer role
+      authService.setCurrentUserForTesting(
+        UserModel(
+          id: 'test-c1',
+          name: 'Tharusha Wakwella',
+          email: 'tharusha@metermind.lk',
+          role: UserRole.customer,
+          status: 'Active',
+          createdAt: DateTime.now(),
+        ),
+      );
       expect(authService.isAuthenticated, isTrue);
       expect(authService.currentUser?.role, UserRole.customer);
       expect(authService.currentUser?.name, 'Tharusha Wakwella');
 
-      // Test Meter Reader demo login
-      authService.quickDemoLogin(UserRole.reader);
+      // Test Meter Reader role
+      authService.setCurrentUserForTesting(
+        UserModel(
+          id: 'test-r1',
+          name: 'Nimal Perera',
+          email: 'nimal@metermind.lk',
+          role: UserRole.reader,
+          employeeCode: 'MR001',
+          status: 'Active',
+          createdAt: DateTime.now(),
+        ),
+      );
       expect(authService.currentUser?.role, UserRole.reader);
       expect(authService.currentUser?.employeeCode, 'MR001');
 
-      // Test Admin demo login
-      authService.quickDemoLogin(UserRole.admin);
+      // Test Admin role
+      authService.setCurrentUserForTesting(
+        UserModel(
+          id: 'test-a1',
+          name: 'Senaka De Silva',
+          email: 'admin@metermind.lk',
+          role: UserRole.admin,
+          status: 'Active',
+          createdAt: DateTime.now(),
+        ),
+      );
       expect(authService.currentUser?.role, UserRole.admin);
       expect(authService.currentUser?.name, 'Senaka De Silva');
     });
 
-    test('Registration creates user with proper role and parameters', () async {
-      final user = await authService.registerUser(
+    test('Customer model creation has proper role and parameters', () {
+      final user = UserModel(
+        id: 'cust-test',
         name: 'Kamal Jayawardena',
         email: 'kamal.test@metermind.lk',
-        password: 'password123',
         role: UserRole.customer,
         meterId: 'MM-09999',
         area: 'Maharagama',
+        status: 'Active',
+        createdAt: DateTime.now(),
       );
 
+      authService.setCurrentUserForTesting(user);
       expect(user.name, 'Kamal Jayawardena');
       expect(user.role, UserRole.customer);
       expect(user.meterId, 'MM-09999');

@@ -1,82 +1,127 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
+import '../firebase_options.dart';
 
 class AuthService extends ChangeNotifier {
   static final AuthService instance = AuthService._internal();
   factory AuthService() => instance;
-  AuthService._internal() {
-    _initDemoUsers();
-  }
+  AuthService._internal();
 
   UserModel? _currentUser;
   UserModel? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
 
-  final List<UserModel> _localUsers = [];
+  bool _initialized = false;
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
 
-  void _initDemoUsers() {
-    _localUsers.addAll([
-      UserModel(
-        id: 'DEMO-CUSTOMER',
-        name: 'Tharusha Wakwella',
-        email: 'demo@example.com',
-        role: UserRole.customer,
-        meterId: 'MM-04218',
-        area: 'Homagama',
-        phone: '+94 77 421 8000',
-        status: 'Active',
-      ),
-      UserModel(
-        id: 'DEMO-CUSTOMER-2',
-        name: 'Tharusha Wakwella',
-        email: 'tharusha@metermind.lk',
-        role: UserRole.customer,
-        meterId: 'MM-04218',
-        area: 'Homagama',
-        phone: '+94 77 421 8000',
-        status: 'Active',
-      ),
-      UserModel(
-        id: 'DEMO-READER',
-        name: 'Nimal Perera',
-        email: 'nimal.perera@metermind.lk',
-        role: UserRole.reader,
-        employeeCode: 'MR001',
-        area: 'Homagama',
-        phone: '+94 71 832 1099',
-        status: 'Active',
-      ),
-      UserModel(
-        id: 'DEMO-ADMIN',
-        name: 'Senaka De Silva',
-        email: 'admin@metermind.lk',
-        role: UserRole.admin,
-        employeeCode: 'ADM-01',
-        area: 'Operations HQ',
-        phone: '+94 11 289 0000',
-        status: 'Active',
-      ),
-    ]);
+  String? _initError;
+  String? get initError => _initError;
+
+  /// Initialize Auth state listener to persist session across restarts/refreshes
+  Future<void> initialize() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    try {
+      final auth = FirebaseAuth.instance;
+      auth.authStateChanges().listen((User? firebaseUser) async {
+        if (firebaseUser == null) {
+          _currentUser = null;
+          notifyListeners();
+        } else {
+          await _loadUserProfile(firebaseUser);
+        }
+      });
+
+      // If user is already cached in Firebase Auth
+      final current = auth.currentUser;
+      if (current != null) {
+        await _loadUserProfile(current);
+      }
+    } catch (e) {
+      debugPrint('AuthService initialization error: $e');
+    }
   }
 
-  /// Sign in with email and password, automatically determining user role
+  /// Load user profile from Firestore by UID
+  Future<void> _loadUserProfile(User firebaseUser) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        _currentUser = UserModel.fromMap(doc.data()!, doc.id);
+        _initError = null;
+      } else {
+        // Fallback: check query by email if doc UID is not standard
+        final query = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: firebaseUser.email?.toLowerCase())
+            .limit(1)
+            .get();
+
+        if (query.docs.isNotEmpty) {
+          final first = query.docs.first;
+          _currentUser = UserModel.fromMap(first.data(), first.id);
+          _initError = null;
+        } else {
+          // No profile found for this authenticated user
+          _initError = 'Your account has no assigned role. Please contact support or sign out.';
+          _currentUser = null;
+        }
+      }
+    } catch (e) {
+      _initError = 'Could not load your user profile: $e';
+      _currentUser = null;
+    }
+    notifyListeners();
+  }
+
+  /// Shared Email & Password Sign In
+  /// Authenticates with Firebase Auth and reads the trusted Firestore role
   Future<UserModel> signInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
+    _initError = null;
+    _isLoading = true;
+    notifyListeners();
 
-    // 1. Try Firebase Authentication if online
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: cleanEmail,
         password: password,
       );
 
-      // Try reading user profile from Firestore 'users' collection
+      final firebaseUser = credential.user;
+      if (firebaseUser == null) {
+        throw FirebaseAuthException(
+          code: 'user-not-found',
+          message: 'No user account found.',
+        );
+      }
+
+      // Read profile from Firestore by UID
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .get();
+
+      if (userDoc.exists && userDoc.data() != null) {
+        final user = UserModel.fromMap(userDoc.data()!, userDoc.id);
+        _currentUser = user;
+        return user;
+      }
+
+      // Secondary lookup by email
       final query = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: cleanEmail)
@@ -84,156 +129,206 @@ class AuthService extends ChangeNotifier {
           .get();
 
       if (query.docs.isNotEmpty) {
-        final doc = query.docs.first;
-        final user = UserModel.fromMap(doc.data(), doc.id);
+        final user = UserModel.fromMap(query.docs.first.data(), query.docs.first.id);
         _currentUser = user;
-        notifyListeners();
         return user;
       }
-    } catch (_) {
-      // Continue to local/demo resolution for offline resilience
+
+      // Role missing error
+      await FirebaseAuth.instance.signOut();
+      throw Exception('No role assigned to this account. Contact system administrator.');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    // 2. Check local/demo users
-    final match = _localUsers.firstWhere(
-      (u) => u.email.toLowerCase() == cleanEmail,
-      orElse: () {
-        // If unknown email, infer role from email or domain
-        UserRole inferredRole = UserRole.customer;
-        if (cleanEmail.contains('admin')) {
-          inferredRole = UserRole.admin;
-        } else if (cleanEmail.contains('reader') || cleanEmail.contains('field')) {
-          inferredRole = UserRole.reader;
-        }
-
-        final newUser = UserModel(
-          id: 'USER-${DateTime.now().millisecondsSinceEpoch}',
-          name: cleanEmail.split('@').first.replaceAll('.', ' ').toUpperCase(),
-          email: cleanEmail,
-          role: inferredRole,
-          area: 'Homagama',
-        );
-        _localUsers.add(newUser);
-        return newUser;
-      },
-    );
-
-    _currentUser = match;
-    notifyListeners();
-    return match;
   }
 
-  /// Register a new user with specific role and profile attributes
-  Future<UserModel> registerUser({
+  /// Public Customer Registration
+  /// MUST ALWAYS assign UserRole.customer. Client cannot self-assign Admin or Reader.
+  Future<UserModel> registerCustomer({
     required String name,
     required String email,
     required String password,
-    required UserRole role,
-    String? meterId,
-    String? area,
-    String? employeeCode,
+    required String meterId,
+    required String area,
     String? phone,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
 
-    String generatedId = 'USER-${DateTime.now().millisecondsSinceEpoch}';
+    // Enforce role strictly as customer
+    const role = UserRole.customer;
 
-    // 1. Attempt Firebase Auth & Firestore write
-    try {
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-        email: cleanEmail,
-        password: password,
-      );
+    final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      email: cleanEmail,
+      password: password,
+    );
 
-      if (credential.user != null) {
-        generatedId = credential.user!.uid;
-        await credential.user!.updateDisplayName(name);
-
-        await FirebaseFirestore.instance.collection('users').doc(generatedId).set({
-          'name': name.trim(),
-          'email': cleanEmail,
-          'role': role.name,
-          'status': 'Active',
-          if (meterId != null && meterId.isNotEmpty) 'meterId': meterId.trim(),
-          if (employeeCode != null && employeeCode.isNotEmpty)
-            'employeeCode': employeeCode.trim(),
-          if (area != null && area.isNotEmpty) 'area': area.trim(),
-          if (phone != null && phone.isNotEmpty) 'phone': phone.trim(),
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
-    } catch (_) {
-      // Handled via local storage fallback below
+    final user = credential.user;
+    if (user == null) {
+      throw Exception('Failed to create account.');
     }
 
-    // 2. Save into local cache
+    final uid = user.uid;
+    await user.updateDisplayName(name.trim());
+
+    final userData = {
+      'name': name.trim(),
+      'email': cleanEmail,
+      'role': role.name,
+      'status': 'Active',
+      'meterId': meterId.trim(),
+      'area': area.trim(),
+      if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    // Store in users collection keyed by auth UID
+    await FirebaseFirestore.instance.collection('users').doc(uid).set(userData);
+
+    // Also populate customers collection for the meter
+    await FirebaseFirestore.instance.collection('customers').doc(meterId.trim()).set({
+      'id': meterId.trim(),
+      'meterId': meterId.trim(),
+      'name': name.trim(),
+      'email': cleanEmail,
+      'phone': phone?.trim() ?? '',
+      'area': area.trim(),
+      'meterStatus': 'Meter active',
+      'isMeterActive': true,
+      'currentUsageKwh': 0,
+      'usageChangePercent': 0.0,
+      'latestReadingKwh': 0,
+      'latestReadingDate': 'Pending',
+      'estimatedBillLkr': 0.0,
+      'forecastMinKwh': 0,
+      'forecastMaxKwh': 0,
+    }, SetOptions(merge: true));
+
     final newUser = UserModel(
-      id: generatedId,
+      id: uid,
       name: name.trim(),
       email: cleanEmail,
       role: role,
       status: 'Active',
-      meterId: meterId?.trim(),
-      employeeCode: employeeCode?.trim(),
-      area: (area != null && area.isNotEmpty) ? area.trim() : 'Homagama',
+      meterId: meterId.trim(),
+      area: area.trim(),
       phone: phone?.trim(),
       createdAt: DateTime.now(),
     );
-
-    // Remove old matching if exists and add new
-    _localUsers.removeWhere((u) => u.email.toLowerCase() == cleanEmail);
-    _localUsers.add(newUser);
 
     _currentUser = newUser;
     notifyListeners();
     return newUser;
   }
 
-  /// One-tap demo login for rapid testing of each role
-  void quickDemoLogin(UserRole role) {
-    switch (role) {
-      case UserRole.customer:
-        _currentUser = _localUsers.firstWhere(
-          (u) => u.role == UserRole.customer,
-          orElse: () => UserModel(
-            id: 'DEMO-CUSTOMER',
-            name: 'Tharusha Wakwella',
-            email: 'demo@example.com',
-            role: UserRole.customer,
-            meterId: 'MM-04218',
-            area: 'Homagama',
-          ),
-        );
-        break;
-      case UserRole.reader:
-        _currentUser = _localUsers.firstWhere(
-          (u) => u.role == UserRole.reader,
-          orElse: () => UserModel(
-            id: 'DEMO-READER',
-            name: 'Nimal Perera',
-            email: 'nimal.perera@metermind.lk',
-            role: UserRole.reader,
-            employeeCode: 'MR001',
-            area: 'Homagama',
-          ),
-        );
-        break;
-      case UserRole.admin:
-        _currentUser = _localUsers.firstWhere(
-          (u) => u.role == UserRole.admin,
-          orElse: () => UserModel(
-            id: 'DEMO-ADMIN',
-            name: 'Senaka De Silva',
-            email: 'admin@metermind.lk',
-            role: UserRole.admin,
-            employeeCode: 'ADM-01',
-            area: 'Operations HQ',
-          ),
-        );
-        break;
+  /// Admin operation: Create Meter Reader Account
+  /// Uses a secondary Firebase App instance so the currently logged-in Admin is NOT signed out.
+  /// Gives the reader a private way to set their password via Firebase password setup/reset email.
+  Future<UserModel> createMeterReaderAsAdmin({
+    required String name,
+    required String email,
+    String? password,
+    required String employeeCode,
+    required String area,
+    String? phone,
+    bool sendPasswordSetupEmail = true,
+  }) async {
+    // 1. Authorization check: current caller must be Admin
+    if (_currentUser == null || _currentUser!.role != UserRole.admin) {
+      throw Exception('Unauthorized: Only an Administrator can create Meter Reader accounts.');
     }
-    notifyListeners();
+
+    final cleanEmail = email.trim().toLowerCase();
+
+    // Check if user with this email already exists in Firestore
+    final existing = await FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: cleanEmail)
+        .limit(1)
+        .get();
+
+    if (existing.docs.isNotEmpty) {
+      throw Exception('An account with email $cleanEmail already exists.');
+    }
+
+    // Determine initial password (use provided or generate strong temporary secret)
+    final initialPassword = (password != null && password.trim().length >= 6)
+        ? password.trim()
+        : 'MR-${DateTime.now().millisecondsSinceEpoch}!Mm9';
+
+    // 2. Initialize secondary FirebaseApp to create the reader user without overriding current admin session
+    final appName = 'AdminReaderCreator_${DateTime.now().millisecondsSinceEpoch}';
+    FirebaseApp? secondaryApp;
+    try {
+      secondaryApp = await Firebase.initializeApp(
+        name: appName,
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+
+      final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+      if (const bool.fromEnvironment('USE_FIREBASE_EMULATOR', defaultValue: false)) {
+        try {
+          await secondaryAuth.useAuthEmulator('localhost', 9099);
+        } catch (e) {
+          debugPrint('Secondary auth emulator connection note: $e');
+        }
+      }
+      final credential = await secondaryAuth.createUserWithEmailAndPassword(
+        email: cleanEmail,
+        password: initialPassword,
+      );
+
+      final newUid = credential.user!.uid;
+      await credential.user!.updateDisplayName(name.trim());
+
+      // If requested, send password setup email directly to reader's email address
+      if (sendPasswordSetupEmail) {
+        try {
+          await FirebaseAuth.instance.sendPasswordResetEmail(email: cleanEmail);
+        } catch (e) {
+          debugPrint('Password setup email dispatch note: $e');
+        }
+      }
+
+      // Sign out secondary app immediately
+      await secondaryAuth.signOut();
+
+      // 3. Write Meter Reader profile to Firestore
+      final readerData = {
+        'name': name.trim(),
+        'email': cleanEmail,
+        'role': UserRole.reader.name,
+        'status': 'Active',
+        'employeeCode': employeeCode.trim(),
+        'area': area.trim(),
+        if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+        'assignedCount': 0,
+        'completedCount': 0,
+        'pendingCount': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      await FirebaseFirestore.instance.collection('users').doc(newUid).set(readerData);
+
+      // Also register into readers collection
+      await FirebaseFirestore.instance.collection('readers').doc(newUid).set(readerData, SetOptions(merge: true));
+
+      return UserModel(
+        id: newUid,
+        name: name.trim(),
+        email: cleanEmail,
+        role: UserRole.reader,
+        employeeCode: employeeCode.trim(),
+        area: area.trim(),
+        phone: phone?.trim(),
+        status: 'Active',
+        createdAt: DateTime.now(),
+      );
+    } finally {
+      if (secondaryApp != null) {
+        await secondaryApp.delete();
+      }
+    }
   }
 
   /// Sign out current user
@@ -242,7 +337,22 @@ class AuthService extends ChangeNotifier {
       await FirebaseAuth.instance.signOut();
     } catch (_) {}
     _currentUser = null;
+    _initError = null;
+    notifyListeners();
+  }
+
+  /// Reload current profile from Firestore
+  Future<void> reloadProfile() async {
+    final current = FirebaseAuth.instance.currentUser;
+    if (current != null) {
+      await _loadUserProfile(current);
+    }
+  }
+
+  /// Sets current user for testing purposes
+  @visibleForTesting
+  void setCurrentUserForTesting(UserModel? user) {
+    _currentUser = user;
     notifyListeners();
   }
 }
-

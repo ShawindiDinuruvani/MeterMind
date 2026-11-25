@@ -99,12 +99,14 @@ class AdminBackendService {
         final data = doc.data();
         return {
           'id': doc.id,
-          'reportId': data['reportId'] ?? 'OUT-${doc.id.substring(0, 4).toUpperCase()}',
+          'reportId': data['reportId'] ?? 'OUT-${doc.id.substring(0, doc.id.length >= 4 ? 4 : doc.id.length).toUpperCase()}',
           'location': data['location'] ?? '',
           'reportedBy': data['reportedBy'] ?? '',
           'time': data['time'] ?? '',
           'details': data['details'] ?? '',
           'status': data['status'] ?? 'Pending',
+          'latitude': (data['latitude'] as num?)?.toDouble(),
+          'longitude': (data['longitude'] as num?)?.toDouble(),
         };
       }).toList();
     });
@@ -118,13 +120,22 @@ class AdminBackendService {
   }
 
   // 3. Add New Outage Report
-  Future<void> addOutage(String location, String reportedBy, String time, String details) async {
+  Future<void> addOutage(
+    String location,
+    String reportedBy,
+    String time,
+    String details, {
+    double? latitude,
+    double? longitude,
+  }) async {
     await _firestore.collection('outages').add({
       'location': location,
       'reportedBy': reportedBy,
       'time': time,
       'details': details,
       'status': 'Pending',
+      'latitude': latitude,
+      'longitude': longitude,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
