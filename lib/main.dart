@@ -1,4 +1,6 @@
-import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart' hide FirebaseService;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'firebase_options.dart';
@@ -9,6 +11,7 @@ import 'screens/customer_dashboard.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'services/auth_service.dart';
+import 'services/firebase_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -22,6 +25,24 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase initialization note: $e');
   }
+
+  // Connect to Firebase Emulators when opt-in emulator flag is set
+  const bool useEmulator = bool.fromEnvironment('USE_FIREBASE_EMULATOR', defaultValue: false);
+  if (useEmulator) {
+    try {
+      await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+      FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+      debugPrint('Connected to Firebase Emulators (Auth: 9099, Firestore: 8080)');
+    } catch (e) {
+      debugPrint('Firebase emulator connection note: $e');
+    }
+  }
+
+  // Initialize Reader Firebase & local cache service
+  await FirebaseService().initialize();
+
+  // Initialize Auth state listener for session persistence across refreshes
+  await AuthService.instance.initialize();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -74,6 +95,7 @@ class _MeterMindAppState extends State<MeterMindApp> {
 /// Customer -> CustomerDashboard
 /// Meter Reader -> MainNavigationScreen
 /// Admin -> AdminDashboard
+/// Shows clear retry and sign-out options if role is missing or loading fails.
 class AuthGate extends StatelessWidget {
   final VoidCallback onToggleTheme;
   final bool isDarkTheme;
@@ -89,7 +111,58 @@ class AuthGate extends StatelessWidget {
     return ListenableBuilder(
       listenable: AuthService.instance,
       builder: (context, _) {
-        final user = AuthService.instance.currentUser;
+        final auth = AuthService.instance;
+        final user = auth.currentUser;
+
+        // If an account has an error or missing role after sign-in
+        if (auth.initError != null) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF4F5F0),
+            body: SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.shield_outlined, size: 54, color: Color(0xFFBE443B)),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Role Verification Required',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        auth.initError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF65716A), height: 1.4),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => auth.reloadProfile(),
+                            child: const Text('Retry'),
+                          ),
+                          const SizedBox(width: 14),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF5C542),
+                              foregroundColor: const Color(0xFF202523),
+                            ),
+                            onPressed: () => auth.signOut(),
+                            child: const Text('Sign Out'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
 
         if (user == null) {
           return LoginScreen(

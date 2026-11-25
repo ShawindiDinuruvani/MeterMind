@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      // Authenticated users can read profiles
+      allow read: if isAuthenticated();
+
+      // Public registration: A user creating their own profile can ONLY assign 'customer' role.
+      // Admin can create accounts for any role (e.g. reader).
+      allow create: if (isAuthenticated() && isOwner(userId) && request.resource.data.role == 'customer')
+                    || isAdmin();
+
+      // Updating a user profile: Users cannot elevate or change their own role.
+      // Only an Admin can update user roles.
+      allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role)
+                    || isAdmin();
+
+      // Only Admin can delete a user document
+      allow delete: if isAdmin();
+    }
+
+    // Readers Collection (Only Admin can manage staff profiles)
+    match /readers/{readerId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Customers Collection
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Meter Assignments
+    match /meter_assignments/{assignmentId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated();
+    }
+
+    // Outages
+    match /outages/{outageId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated();
+    }
+
+    // Meter Readings
+    match /meter_readings/{readingId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+    }
+
+    // Default catch-all for authenticated application features
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

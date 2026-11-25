@@ -521,8 +521,8 @@ class CustomerFirebaseService {
         status: 'Reported issue',
         isHotspot: false,
         radiusMeters: 400,
-        latitude: latitude ?? 6.8404,
-        longitude: longitude ?? 80.0034,
+        latitude: latitude,
+        longitude: longitude,
         description: description,
       );
       _localOutages.insert(0, updatedOrNew);

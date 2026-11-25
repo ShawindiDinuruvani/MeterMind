@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -6,12 +8,16 @@ import '../firebase_options.dart';
 import '../models/assignment_model.dart';
 import '../models/reading_model.dart';
 import '../models/reader_model.dart';
+import '../models/user_model.dart';
+import 'auth_service.dart';
 import 'customer_firebase_service.dart';
 
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
   factory FirebaseService() => _instance;
-  FirebaseService._internal();
+  FirebaseService._internal() {
+    _loadLocalCache();
+  }
 
   FirebaseFirestore? _firestore;
   bool _initialized = false;
@@ -164,6 +170,199 @@ class FirebaseService {
   List<AssignmentModel> get currentAssignments => List.unmodifiable(_localAssignments);
   List<ReadingModel> get currentReadings => List.unmodifiable(_localReadings);
 
+  File _getCacheFile() {
+    return File('${Directory.systemTemp.path}/metermind_readings_cache.json');
+  }
+
+  void _loadLocalCache() {
+    if (kIsWeb) return;
+    try {
+      final file = _getCacheFile();
+      if (file.existsSync()) {
+        final content = file.readAsStringSync();
+        if (content.isNotEmpty) {
+          final List<dynamic> jsonList = jsonDecode(content);
+          for (var item in jsonList) {
+            final reading = ReadingModel.fromMap(
+              Map<String, dynamic>.from(item as Map),
+              item['id']?.toString() ?? '',
+            );
+            final rIdx = _localReadings.indexWhere((r) => r.id == reading.id);
+            if (rIdx == -1) {
+              _localReadings.insert(0, reading);
+            } else {
+              _localReadings[rIdx] = reading;
+            }
+            final aIdx = _localAssignments.indexWhere((a) => a.meterId == reading.meterId);
+            if (aIdx != -1 && _localAssignments[aIdx].status != 'Completed') {
+              _localAssignments[aIdx] = _localAssignments[aIdx].copyWith(status: 'Completed');
+              final newComp = _localReader.completedCount + 1;
+              _localReader = _localReader.copyWith(
+                completedCount: newComp,
+                pendingCount: (_localReader.assignedCount - newComp).clamp(0, _localReader.assignedCount),
+              );
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _saveLocalCache() {
+    if (kIsWeb) return;
+    try {
+      final file = _getCacheFile();
+      final data = jsonEncode(_localReadings.map((r) => r.toMap()).toList());
+      file.writeAsStringSync(data);
+    } catch (_) {}
+  }
+
+  @visibleForTesting
+  void resetForTesting() {
+    _localReader = ReaderModel(
+      id: 'MR001',
+      name: 'Nimal Perera',
+      employeeCode: 'MR001',
+      area: 'Homagama',
+      email: 'nimal.perera@metermind.lk',
+      assignedCount: 40,
+      completedCount: 28,
+      pendingCount: 12,
+    );
+    _localAssignments.clear();
+    _localAssignments.addAll([
+      AssignmentModel(
+        id: 'MM-04218',
+        meterId: 'MM-04218',
+        customerName: 'Tharusha Wakwella',
+        address: '24 Temple Road, Homagama',
+        area: 'Homagama',
+        previousReading: 15700,
+        previousReadingDate: '01 Oct 2026',
+        dueDate: '04 Oct 2026',
+        status: 'Pending',
+        latitude: 6.8404,
+        longitude: 80.0034,
+        averageMonthlyUsage: 312,
+        sequence: 1,
+      ),
+      AssignmentModel(
+        id: 'MM-02816',
+        meterId: 'MM-02816',
+        customerName: 'S. Fernando',
+        address: '18 Station Road, Homagama',
+        area: 'Homagama',
+        previousReading: 12450,
+        previousReadingDate: '01 Oct 2026',
+        dueDate: '04 Oct 2026',
+        status: 'Pending',
+        latitude: 6.8420,
+        longitude: 80.0080,
+        averageMonthlyUsage: 295,
+        sequence: 2,
+      ),
+      AssignmentModel(
+        id: 'MM-01825',
+        meterId: 'MM-01825',
+        customerName: 'D. Jayasinghe',
+        address: '7 High Level Road, Homagama',
+        area: 'Homagama',
+        previousReading: 21980,
+        previousReadingDate: '01 Oct 2026',
+        dueDate: '04 Oct 2026',
+        status: 'Completed',
+        latitude: 6.8375,
+        longitude: 79.9980,
+        averageMonthlyUsage: 340,
+        sequence: 3,
+      ),
+      AssignmentModel(
+        id: 'MM-05120',
+        meterId: 'MM-05120',
+        customerName: 'K. Bandara',
+        address: '42 Sunethra Devi Road, Homagama',
+        area: 'Homagama',
+        previousReading: 9840,
+        previousReadingDate: '01 Oct 2026',
+        dueDate: '04 Oct 2026',
+        status: 'Pending',
+        latitude: 6.8445,
+        longitude: 80.0055,
+        averageMonthlyUsage: 280,
+        sequence: 4,
+      ),
+      AssignmentModel(
+        id: 'MM-06331',
+        meterId: 'MM-06331',
+        customerName: 'M. Perera',
+        address: '11 Lake View Gardens, Homagama',
+        area: 'Homagama',
+        previousReading: 18200,
+        previousReadingDate: '01 Oct 2026',
+        dueDate: '04 Oct 2026',
+        status: 'Pending',
+        latitude: 6.8350,
+        longitude: 80.0120,
+        averageMonthlyUsage: 310,
+        sequence: 5,
+      ),
+    ]);
+    _localReadings.clear();
+    _localReadings.addAll([
+      ReadingModel(
+        id: 'R-001',
+        meterId: 'MM-04218',
+        customerName: 'Tharusha Wakwella',
+        readerId: 'MR001',
+        readerName: 'Nimal Perera',
+        previousReading: 15388,
+        currentReading: 15700,
+        units: 312,
+        date: '01 Oct 2026',
+        timestamp: DateTime(2026, 10, 1, 10, 30),
+        status: 'Verified',
+        note: 'Routine monthly reading. Seal intact.',
+        aiConfidence: 0.99,
+      ),
+      ReadingModel(
+        id: 'R-002',
+        meterId: 'MM-04218',
+        customerName: 'Tharusha Wakwella',
+        readerId: 'MR001',
+        readerName: 'Nimal Perera',
+        previousReading: 15049,
+        currentReading: 15388,
+        units: 339,
+        date: '01 Sep 2026',
+        timestamp: DateTime(2026, 9, 1, 11, 15),
+        status: 'Verified',
+        note: 'Normal cycle.',
+        aiConfidence: 0.98,
+      ),
+      ReadingModel(
+        id: 'R-003',
+        meterId: 'MM-04218',
+        customerName: 'Tharusha Wakwella',
+        readerId: 'MR001',
+        readerName: 'Nimal Perera',
+        previousReading: 14763,
+        currentReading: 15049,
+        units: 286,
+        date: '01 Aug 2026',
+        timestamp: DateTime(2026, 8, 1, 9, 45),
+        status: 'Verified',
+        note: 'Normal cycle.',
+        aiConfidence: 0.99,
+      ),
+    ]);
+    try {
+      final file = _getCacheFile();
+      if (file.existsSync()) {
+        file.deleteSync();
+      }
+    } catch (_) {}
+  }
+
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -175,9 +374,8 @@ class FirebaseService {
       ]);
     } catch (e) {
       if (kDebugMode) {
-        print('Firebase init fallback: $e');
+        print('Firebase init note: $e');
       }
-      _useLocalFallback = true;
     } finally {
       _initialized = true;
       _emitLocalStreams();
@@ -254,9 +452,22 @@ class FirebaseService {
 
   // Streams with immediate yield of in-memory data
   Stream<ReaderModel> streamReaderProfile() async* {
+    final currentUser = AuthService.instance.currentUser;
+    if (currentUser != null && currentUser.role == UserRole.reader) {
+      _localReader = _localReader.copyWith(
+        id: currentUser.employeeCode ?? currentUser.id,
+        name: currentUser.name.isNotEmpty ? currentUser.name : _localReader.name,
+        employeeCode: currentUser.employeeCode ?? _localReader.employeeCode,
+        area: currentUser.area ?? _localReader.area,
+        email: currentUser.email,
+      );
+    }
     yield _localReader;
+
+    final readerDocId = _localReader.employeeCode.isNotEmpty ? _localReader.employeeCode : 'MR001';
+
     if (!_useLocalFallback && _firestore != null) {
-      yield* _firestore!.collection('meter_readers').doc('MR001').snapshots().map((doc) {
+      yield* _firestore!.collection('meter_readers').doc(readerDocId).snapshots().map((doc) {
         if (doc.exists && doc.data() != null) {
           _localReader = ReaderModel.fromMap(doc.data()!, doc.id);
           return _localReader;
@@ -309,6 +520,16 @@ class FirebaseService {
         }
         final list = snap.docs.map((d) => ReadingModel.fromMap(d.data(), d.id)).toList();
         list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        // Keep _localReadings in sync with Firestore
+        for (var item in list) {
+          final idx = _localReadings.indexWhere((r) => r.id == item.id);
+          if (idx == -1) {
+            _localReadings.add(item);
+          } else {
+            _localReadings[idx] = item;
+          }
+        }
+        _localReadings.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         return list;
       }).handleError((_) => _localReadings);
     } else {
@@ -322,48 +543,54 @@ class FirebaseService {
   }
 
   // Submit Reading
-  Future<bool> submitReading(ReadingModel reading) async {
-    // 1. Update local state
-    _localReadings.insert(0, reading);
-    final idx = _localAssignments.indexWhere((a) => a.meterId == reading.meterId);
-    if (idx != -1) {
-      _localAssignments[idx] = _localAssignments[idx].copyWith(status: 'Completed');
-    }
-    final newCompleted = _localReader.completedCount + 1;
-    final newPending = _localReader.assignedCount - newCompleted;
-    _localReader = _localReader.copyWith(
-      completedCount: newCompleted,
-      pendingCount: newPending > 0 ? newPending : 0,
+  Future<bool> submitReading(ReadingModel reading, {String? assignmentId}) async {
+    final currentUser = AuthService.instance.currentUser;
+    final currentReaderId = reading.readerId.isNotEmpty
+        ? reading.readerId
+        : (currentUser?.employeeCode ?? _localReader.employeeCode);
+
+    // Resolve the exact assignment document ID in Firestore
+    final resolvedAssignmentId = assignmentId ??
+        _localAssignments.cast<AssignmentModel?>().firstWhere(
+          (a) => a?.meterId == reading.meterId,
+          orElse: () => null,
+        )?.id ?? reading.meterId;
+
+    final assignIdx = _localAssignments.indexWhere(
+      (a) => a.id == resolvedAssignmentId || a.meterId == reading.meterId,
     );
-    _emitLocalStreams();
+    final bool alreadyCompleted = assignIdx != -1 && _localAssignments[assignIdx].status == 'Completed';
 
-    // Also update Customer backend in real-time
-    CustomerFirebaseService().notifyReadingSubmitted(reading);
-
-    // 2. Sync to Firebase Firestore if connected
+    // 1. Attempt Firestore commit if connected
     if (!_useLocalFallback && _firestore != null) {
       try {
         final batch = _firestore!.batch();
 
-        // Add reading
+        // Save reading document
         final readingRef = _firestore!.collection('readings').doc(reading.id);
         batch.set(readingRef, reading.toMap());
 
-        // Update assignment status
-        final assignmentRef = _firestore!.collection('assignments').doc(reading.meterId);
-        batch.update(assignmentRef, {'status': 'Completed'});
-
-        // Update reader statistics
-        final readerRef = _firestore!.collection('meter_readers').doc('MR001');
-        batch.update(readerRef, {
-          'completedCount': newCompleted,
-          'pendingCount': newPending > 0 ? newPending : 0,
+        // Complete the correct assignment document in Firestore
+        final assignmentRef = _firestore!.collection('assignments').doc(resolvedAssignmentId);
+        batch.update(assignmentRef, {
+          'status': 'Completed',
+          'completedReading': reading.currentReading,
+          'completedAt': FieldValue.serverTimestamp(),
         });
 
-        // If flagged as anomaly, record in anomalies collection for supervisor
+        // Only increment reader completed count if not already completed (prevents double count on retry)
+        if (!alreadyCompleted) {
+          final readerRef = _firestore!.collection('meter_readers').doc(currentReaderId);
+          batch.set(readerRef, {
+            'completedCount': FieldValue.increment(1),
+            'pendingCount': FieldValue.increment(-1),
+          }, SetOptions(merge: true));
+        }
+
         if (reading.isAnomaly) {
-          final anomalyRef = _firestore!.collection('anomalies').doc();
+          final anomalyRef = _firestore!.collection('anomalies').doc('ANOM-${reading.id}');
           batch.set(anomalyRef, {
+            'readingId': reading.id,
             'meterId': reading.meterId,
             'customerName': reading.customerName,
             'readerId': reading.readerId,
@@ -377,14 +604,42 @@ class FirebaseService {
         }
 
         await batch.commit().timeout(const Duration(seconds: 4));
-        return true;
       } catch (e) {
         if (kDebugMode) {
-          print('Error committing to Firestore (saved locally): $e');
+          print('Firestore submission error: $e');
         }
-        return true;
+        // Save failed or unconfirmed: return false so UI tells reader and keeps input
+        return false;
       }
     }
+
+    // 2. Confirmed save: Update local cache & streams (idempotent, no duplicates)
+    final existingIdx = _localReadings.indexWhere((r) => r.id == reading.id || (r.meterId == reading.meterId && r.currentReading == reading.currentReading));
+    if (existingIdx != -1) {
+      _localReadings[existingIdx] = reading;
+    } else {
+      _localReadings.insert(0, reading);
+    }
+
+    if (assignIdx != -1) {
+      _localAssignments[assignIdx] = _localAssignments[assignIdx].copyWith(status: 'Completed');
+    }
+
+    if (!alreadyCompleted) {
+      final newCompleted = _localReader.completedCount + 1;
+      final newPending = (_localReader.assignedCount - newCompleted).clamp(0, _localReader.assignedCount);
+      _localReader = _localReader.copyWith(
+        completedCount: newCompleted,
+        pendingCount: newPending,
+      );
+    }
+
+    _saveLocalCache();
+    _emitLocalStreams();
+
+    // Notify Customer backend in real-time
+    CustomerFirebaseService().notifyReadingSubmitted(reading);
+
     return true;
   }
 

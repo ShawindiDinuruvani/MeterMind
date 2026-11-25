@@ -5,8 +5,8 @@ class OutageReportModel {
   final String status; // 'Unverified', 'Reported issue', 'No active reports', 'Restored'
   final bool isHotspot;
   final int radiusMeters;
-  final double latitude;
-  final double longitude;
+  final double? latitude;
+  final double? longitude;
   final String description;
   final DateTime reportedAt;
   final String? reportedBy;
@@ -18,8 +18,8 @@ class OutageReportModel {
     required this.status,
     this.isHotspot = false,
     this.radiusMeters = 600,
-    required this.latitude,
-    required this.longitude,
+    this.latitude,
+    this.longitude,
     required this.description,
     DateTime? reportedAt,
     this.reportedBy,
@@ -77,8 +77,8 @@ class OutageReportModel {
       status: map['status'] ?? 'Unverified',
       isHotspot: map['isHotspot'] ?? false,
       radiusMeters: (map['radiusMeters'] as num?)?.toInt() ?? 600,
-      latitude: (map['latitude'] as num?)?.toDouble() ?? 6.8404,
-      longitude: (map['longitude'] as num?)?.toDouble() ?? 80.0034,
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
       description: map['description'] ?? '',
       reportedAt: _parseDateTime(map['reportedAt']),
       reportedBy: map['reportedBy'],

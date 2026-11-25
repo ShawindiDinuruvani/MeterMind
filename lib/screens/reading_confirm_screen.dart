@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/assignment_model.dart';
 import '../models/reading_model.dart';
 import '../services/ai_service.dart';
+import '../services/auth_service.dart';
 import '../services/firebase_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
@@ -35,19 +36,33 @@ class ReadingConfirmScreen extends StatefulWidget {
 
 class _ReadingConfirmScreenState extends State<ReadingConfirmScreen> {
   bool _isSubmitting = false;
+  String? _submissionId;
 
   void _submit() async {
+    if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
 
     final now = DateTime.now();
     final formattedDate = DateFormat('dd MMM yyyy, HH:mm').format(now);
 
+    // Identify signed-in reader dynamically
+    final currentUser = AuthService.instance.currentUser;
+    final readerId = (currentUser?.employeeCode?.isNotEmpty == true)
+        ? currentUser!.employeeCode!
+        : (currentUser?.id.isNotEmpty == true ? currentUser!.id : 'MR001');
+    final readerName = (currentUser?.name.isNotEmpty == true)
+        ? currentUser!.name
+        : 'Nimal Perera';
+
+    // Keep submission ID consistent across retries to prevent duplicate documents
+    _submissionId ??= 'READ-${widget.assignment.meterId}-${now.millisecondsSinceEpoch}';
+
     final reading = ReadingModel(
-      id: 'READ-${widget.assignment.meterId}-${now.millisecondsSinceEpoch}',
+      id: _submissionId!,
       meterId: widget.assignment.meterId,
       customerName: widget.assignment.customerName,
-      readerId: 'MR001',
-      readerName: 'Nimal Perera',
+      readerId: readerId,
+      readerName: readerName,
       previousReading: widget.assignment.previousReading,
       currentReading: widget.currentReading,
       units: widget.consumption,
@@ -61,7 +76,10 @@ class _ReadingConfirmScreenState extends State<ReadingConfirmScreen> {
       photoPath: widget.photoPath,
     );
 
-    final success = await FirebaseService().submitReading(reading);
+    final success = await FirebaseService().submitReading(
+      reading,
+      assignmentId: widget.assignment.id,
+    );
 
     if (mounted) {
       setState(() => _isSubmitting = false);
@@ -77,8 +95,11 @@ class _ReadingConfirmScreenState extends State<ReadingConfirmScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to submit reading. Saved offline.'),
+            content: Text(
+              'Could not confirm submission with the server. Please check your connection and retry.',
+            ),
             backgroundColor: AppColors.red,
+            duration: Duration(seconds: 4),
           ),
         );
       }

@@ -5,7 +5,6 @@ import '../services/firebase_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'notifications_screen.dart';
 import 'settings_screen.dart';
 import 'support_screen.dart';

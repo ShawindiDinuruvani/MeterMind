@@ -151,7 +151,7 @@ class _RecommendationPageState extends State<RecommendationPage> {
               ),
               SizedBox(height: 12),
               Text(
-                'This prototype does not yet connect to a live meter or utility account.',
+                'Energy tracking is connected to your registered meter. Check your reading date and units in Consumption Insights.',
                 style: TextStyle(color: _muted, height: 1.5),
               ),
             ],
